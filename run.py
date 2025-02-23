@@ -1,0 +1,83 @@
+import os
+import argparse
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from tqdm import *
+from exp.exp_steady import Exp_Steady
+from exp.exp_dynamic_conditional import Exp_Dynamic_Conditional
+from exp.exp_dynamic_autoregressive import Exp_Dynamic_Autoregressive
+
+parser = argparse.ArgumentParser('Training Neural PDE Solvers')
+
+## training
+parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
+parser.add_argument('--epochs', type=int, default=500, help='maximum epochs')
+parser.add_argument('--weight_decay', type=float, default=1e-5, help='optimizer weight decay')
+parser.add_argument('--batch-size', type=int, default=8, help='batch size')
+parser.add_argument("--gpu", type=str, default='0', help="GPU index to use")
+parser.add_argument('--max_grad_norm', type=float, default=None, help='make the training stable')
+parser.add_argument('--derivloss', type=bool, default=False, help='adopt the spatial derivate as regularization')
+
+## data
+parser.add_argument('--data_path', type=str, default='/data/fno/', help='data folder')
+parser.add_argument('--loader', type=str, default='airfoil', help='type of data loader')
+parser.add_argument('--ntrain', type=int, default=1000, help='training data numbers')
+parser.add_argument('--ntest', type=int, default=200, help='test data numbers')
+parser.add_argument('--normalize', type=bool, default=False, help='make normalization to output')
+parser.add_argument('--geotype', type=str, default='unstructured',
+                    help='select from [unstructured, structured_1D, structured_2D, structured_3D]')
+parser.add_argument('--time_input', type=bool, default=False, help='for conditional dynamic task')
+parser.add_argument('--space_dim', type=int, default=2, help='position information dimension')
+parser.add_argument('--fun_dim', type=int, default=0, help='input observation dimension')
+parser.add_argument('--out_dim', type=int, default=1, help='output observation dimension')
+parser.add_argument('--shapelist', type=list, default=None, help='for structured geometry')
+parser.add_argument('--downsamplex', type=int, default=1, help='downsample rate in x-axis')
+parser.add_argument('--downsampley', type=int, default=1, help='downsample rate in y-axis')
+
+## task
+parser.add_argument('--task', type=str, default='steady',
+                    help='select from [steady, dynamic_autoregressive, dynamic_conditional]')
+parser.add_argument('--T_in', type=int, default=10, help='for input sequence')
+parser.add_argument('--T_out', type=int, default=10, help='for output sequence')
+
+## models
+parser.add_argument('--models', type=str, default='Transolver_2D')
+parser.add_argument('--n_hidden', type=int, default=64, help='hidden dim')
+parser.add_argument('--n_layers', type=int, default=3, help='layers')
+parser.add_argument('--n_heads', type=int, default=4, help='number of heads')
+parser.add_argument('--act', type=str, default='gelu')
+parser.add_argument('--mlp_ratio', type=int, default=1, help='mlp ratio for feedforward layers')
+parser.add_argument('--dropout', type=float, default=0.0, help='dropout')
+parser.add_argument('--unified_pos', type=int, default=0, help='for unified position embedding')
+parser.add_argument('--ref', type=int, default=8, help='number of reference points for unified pos embedding')
+parser.add_argument('--slice_num', type=int, default=32, help='number of physical states for Transolver')
+
+## eval
+parser.add_argument('--eval', type=int, default=0, help='evaluation or not')
+parser.add_argument('--save_name', type=str, default='Transolver_check', help='name of folders')
+parser.add_argument('--vis_num', type=int, default=10, help='number of visualization cases')
+parser.add_argument('--vis_bound', type=int, nargs='+', default=None, help='size of region for visualization, in list')
+
+args = parser.parse_args()
+eval = args.eval
+save_name = args.save_name
+os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+
+
+def main():
+    if args.task == 'steady':
+        exp = Exp_Steady(args)
+    elif args.task == 'dynamic_autoregressive':
+        exp = Exp_Dynamic_Autoregressive(args)
+    elif args.task == 'dynamic_conditional':
+        exp = Exp_Dynamic_Conditional(args)
+
+    if eval:
+        exp.test()
+    else:
+        exp.train()
+
+
+if __name__ == "__main__":
+    main()
