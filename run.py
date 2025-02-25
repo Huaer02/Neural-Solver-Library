@@ -14,10 +14,15 @@ parser = argparse.ArgumentParser('Training Neural PDE Solvers')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
 parser.add_argument('--epochs', type=int, default=500, help='maximum epochs')
 parser.add_argument('--weight_decay', type=float, default=1e-5, help='optimizer weight decay')
+parser.add_argument('--pct_start', type=float, default=0.3, help='oncycle lr schedule')
 parser.add_argument('--batch-size', type=int, default=8, help='batch size')
 parser.add_argument("--gpu", type=str, default='0', help="GPU index to use")
 parser.add_argument('--max_grad_norm', type=float, default=None, help='make the training stable')
 parser.add_argument('--derivloss', type=bool, default=False, help='adopt the spatial derivate as regularization')
+parser.add_argument('--teacher_forcing', type=bool, default=True,
+                    help='adopt teacher forcing in autoregressive to speed up convergence')
+parser.add_argument('--scheduler', type=str, default='OneCycleLR',
+                    help='learning rate scheduler, select from [OneCycleLR, CosineAnnealingLR]')
 
 ## data
 parser.add_argument('--data_path', type=str, default='/data/fno/', help='data folder')
@@ -42,7 +47,7 @@ parser.add_argument('--T_in', type=int, default=10, help='for input sequence')
 parser.add_argument('--T_out', type=int, default=10, help='for output sequence')
 
 ## models
-parser.add_argument('--models', type=str, default='Transolver_2D')
+parser.add_argument('--model', type=str, default='Transolver')
 parser.add_argument('--n_hidden', type=int, default=64, help='hidden dim')
 parser.add_argument('--n_layers', type=int, default=3, help='layers')
 parser.add_argument('--n_heads', type=int, default=4, help='number of heads')
@@ -51,7 +56,10 @@ parser.add_argument('--mlp_ratio', type=int, default=1, help='mlp ratio for feed
 parser.add_argument('--dropout', type=float, default=0.0, help='dropout')
 parser.add_argument('--unified_pos', type=int, default=0, help='for unified position embedding')
 parser.add_argument('--ref', type=int, default=8, help='number of reference points for unified pos embedding')
+
+## model specific configuration
 parser.add_argument('--slice_num', type=int, default=32, help='number of physical states for Transolver')
+parser.add_argument('--modes', type=int, default=12, help='number of basis functions for LSM and FNO')
 
 ## eval
 parser.add_argument('--eval', type=int, default=0, help='evaluation or not')
@@ -72,11 +80,14 @@ def main():
         exp = Exp_Dynamic_Autoregressive(args)
     elif args.task == 'dynamic_conditional':
         exp = Exp_Dynamic_Conditional(args)
+    else:
+        exp = None
 
     if eval:
         exp.test()
     else:
         exp.train()
+        exp.test()
 
 
 if __name__ == "__main__":

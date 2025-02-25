@@ -37,8 +37,12 @@ class Exp_Dynamic_Conditional(Exp_Basic):
 
     def train(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.args.lr, epochs=self.args.epochs,
-                                                        steps_per_epoch=len(self.train_loader))
+        if self.args.scheduler == 'OneCycleLR':
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.args.lr, epochs=self.args.epochs,
+                                                            steps_per_epoch=len(self.train_loader),
+                                                            pct_start=self.args.pct_start)
+        elif self.args.scheduler == 'CosineAnnealingLR':
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.args.epochs)
         myloss = L2Loss(size_average=False)
 
         for ep in range(self.args.epochs):
@@ -46,7 +50,6 @@ class Exp_Dynamic_Conditional(Exp_Basic):
             train_l2_step = 0
 
             for pos, time, fx, yy in self.train_loader:
-                loss = 0
                 x, time, fx, yy = pos.cuda(), time.cuda(), fx.cuda(), yy.cuda()
                 for t in range(self.args.T_out):
                     y = yy[..., self.args.out_dim * t:self.args.out_dim * (t + 1)]
@@ -54,15 +57,18 @@ class Exp_Dynamic_Conditional(Exp_Basic):
                     if self.args.fun_dim == 0:
                         fx = None
                     im = self.model(x, fx=fx, T=input_T)
-                    loss += myloss(im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1))
+                    loss = myloss(im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1))
+                    train_l2_step += loss.item()
+                    optimizer.zero_grad()
+                    loss.backward()
 
-                train_l2_step += loss.item()
-                optimizer.zero_grad()
-                loss.backward()
+                    if self.args.max_grad_norm is not None:
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.args.max_grad_norm)
+                    optimizer.step()
 
-                if self.args.max_grad_norm is not None:
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.args.max_grad_norm)
-                optimizer.step()
+                if self.args.scheduler == 'OneCycleLR':
+                    scheduler.step()
+            if self.args.scheduler == 'CosineAnnealingLR':
                 scheduler.step()
 
             train_loss_step = train_l2_step / (self.args.ntrain * float(self.args.T_out))
@@ -110,9 +116,8 @@ class Exp_Dynamic_Conditional(Exp_Basic):
 
                 if id < self.args.vis_num:
                     print('visual: ', id)
-                    print(x.shape)
-                    print(yy.shape)
-                    visual(yy[:, :, -4:-2], yy[:, :, -1:], pred[:, :, -1:], self.args, id)
+                    visual(yy[:, :, -4:-2], torch.sqrt(yy[:, :, -1:] ** 2 + yy[:, :, -2:-1] ** 2),
+                           torch.sqrt(pred[:, :, -1:] ** 2 + pred[:, :, -2:-1] ** 2), self.args, id)
 
         rel_err /= self.args.ntest
         print("rel_err:{}".format(rel_err))

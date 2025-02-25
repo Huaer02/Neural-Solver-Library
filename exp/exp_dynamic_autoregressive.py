@@ -37,8 +37,12 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
 
     def train(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.args.lr, epochs=self.args.epochs,
-                                                        steps_per_epoch=len(self.train_loader))
+        if self.args.scheduler == 'OneCycleLR':
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.args.lr, epochs=self.args.epochs,
+                                                            steps_per_epoch=len(self.train_loader),
+                                                            pct_start=self.args.pct_start)
+        elif self.args.scheduler == 'CosineAnnealingLR':
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.args.epochs)
         myloss = L2Loss(size_average=False)
 
         for ep in range(self.args.epochs):
@@ -59,7 +63,11 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                         pred = im
                     else:
                         pred = torch.cat((pred, im), -1)
-                    fx = torch.cat((fx[..., self.args.out_dim:], y), dim=-1)
+
+                    if self.args.teacher_forcing:
+                        fx = torch.cat((fx[..., self.args.out_dim:], y), dim=-1)
+                    else:
+                        fx = torch.cat((fx[..., self.args.out_dim:], im), dim=-1)
 
                 train_l2_step += loss.item()
                 train_l2_full += myloss(pred.reshape(x.shape[0], -1), yy.reshape(x.shape[0], -1)).item()
@@ -69,6 +77,10 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                 if self.args.max_grad_norm is not None:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.args.max_grad_norm)
                 optimizer.step()
+
+                if self.args.scheduler == 'OneCycleLR':
+                    scheduler.step()
+            if self.args.scheduler == 'CosineAnnealingLR':
                 scheduler.step()
 
             train_loss_step = train_l2_step / (self.args.ntrain * float(self.args.T_out))

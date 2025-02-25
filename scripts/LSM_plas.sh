@@ -1,5 +1,5 @@
 python run.py \
---gpu 7 \
+--gpu 3 \
 --data_path /data/fno/ \
 --loader plas \
 --geotype structured_2D \
@@ -11,15 +11,14 @@ python run.py \
 --space_dim 2 \
 --fun_dim 1 \
 --out_dim 4 \
---model Transolver \
---n_hidden 128 \
+--model LSM \
+--n_hidden 32 \
 --n_heads 8 \
 --n_layers 8 \
---mlp_ratio 2 \
 --slice_num 64 \
 --unified_pos 0 \
 --ref 8 \
---batch-size 8 \
+--batch-size 4 \
 --epochs 500 \
 --eval 0 \
---save_name plas_Transolver
+--save_name plas_LSM

@@ -1,24 +1,47 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from timm.models.layers import trunc_normal_
 from layers.Basic import MLP
 from layers.Embedding import timestep_embedding, unified_pos_embedding
-from layers.Physics_Attention import Physics_Attention_Irregular_Mesh
-from layers.Physics_Attention import Physics_Attention_Structured_Mesh_1D
-from layers.Physics_Attention import Physics_Attention_Structured_Mesh_2D
-from layers.Physics_Attention import Physics_Attention_Structured_Mesh_3D
-
-PHYSICS_ATTENTION = {
-    'unstructured': Physics_Attention_Irregular_Mesh,
-    'structured_1D': Physics_Attention_Structured_Mesh_1D,
-    'structured_2D': Physics_Attention_Structured_Mesh_2D,
-    'structured_3D': Physics_Attention_Structured_Mesh_3D
-}
+from einops import rearrange, repeat
 
 
-class Transolver_block(nn.Module):
-    """Transolver encoder block."""
+class Attention(nn.Module):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0.):
+        super().__init__()
+        inner_dim = dim_head * heads
+        self.dim_head = dim_head
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+        self.softmax = nn.Softmax(dim=-1)
+        self.dropout = nn.Dropout(dropout)
+        self.to_q = nn.Linear(dim_head, dim_head, bias=False)
+        self.to_k = nn.Linear(dim_head, dim_head, bias=False)
+        self.to_v = nn.Linear(dim_head, dim_head, bias=False)
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x):
+        # B N C
+        B, N, C = x.shape
+        x = x.reshape(B, N, self.heads, self.dim_head).permute(0, 2, 1, 3).contiguous()  # B H N C
+        q = self.to_q(x)
+        k = self.to_k(x)
+        v = self.to_v(x)
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        attn = self.softmax(dots)
+        attn = self.dropout(attn)
+        res = torch.matmul(attn, v)  # B H G D
+        res = rearrange(res, 'b h n d -> b n (h d)')
+        return self.to_out(res)
+
+
+class Transformer_block(nn.Module):
+    """Transformer encoder block."""
 
     def __init__(
             self,
@@ -29,16 +52,12 @@ class Transolver_block(nn.Module):
             mlp_ratio=4,
             last_layer=False,
             out_dim=1,
-            slice_num=32,
-            geotype='unstructured',
-            shapelist=None
     ):
         super().__init__()
         self.last_layer = last_layer
         self.ln_1 = nn.LayerNorm(hidden_dim)
 
-        self.Attn = PHYSICS_ATTENTION[geotype](hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads,
-                                               dropout=dropout, slice_num=slice_num, shapelist=shapelist)
+        self.Attn = Attention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout)
         self.ln_2 = nn.LayerNorm(hidden_dim)
         self.mlp = MLP(hidden_dim, hidden_dim * mlp_ratio, hidden_dim, n_layers=0, res=False, act=act)
         if self.last_layer:
@@ -55,9 +74,10 @@ class Transolver_block(nn.Module):
 
 
 class Model(nn.Module):
+    ## speed up with flash attention
     def __init__(self, args):
         super(Model, self).__init__()
-        self.__name__ = 'Transolver'
+        self.__name__ = 'Transformer'
         self.args = args
         ## embedding
         if args.unified_pos and args.geotype != 'unstructured':  # only for structured mesh
@@ -72,15 +92,12 @@ class Model(nn.Module):
                                          nn.Linear(args.n_hidden, args.n_hidden))
 
         ## models
-        self.blocks = nn.ModuleList([Transolver_block(num_heads=args.n_heads, hidden_dim=args.n_hidden,
-                                                      dropout=args.dropout,
-                                                      act=args.act,
-                                                      mlp_ratio=args.mlp_ratio,
-                                                      out_dim=args.out_dim,
-                                                      slice_num=args.slice_num,
-                                                      last_layer=(_ == args.n_layers - 1),
-                                                      geotype=args.geotype,
-                                                      shapelist=args.shapelist)
+        self.blocks = nn.ModuleList([Transformer_block(num_heads=args.n_heads, hidden_dim=args.n_hidden,
+                                                       dropout=args.dropout,
+                                                       act=args.act,
+                                                       mlp_ratio=args.mlp_ratio,
+                                                       out_dim=args.out_dim,
+                                                       last_layer=(_ == args.n_layers - 1))
                                      for _ in range(args.n_layers)])
         self.placeholder = nn.Parameter((1 / (args.n_hidden)) * torch.rand(args.n_hidden, dtype=torch.float))
         self.initialize_weights()
@@ -97,7 +114,7 @@ class Model(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def structured_geo(self, x, fx, T=None):
+    def forward(self, x, fx, T=None):
         if self.args.unified_pos:
             x = self.pos.repeat(x.shape[0], 1, 1)
         if fx is not None:
@@ -115,26 +132,3 @@ class Model(nn.Module):
         for block in self.blocks:
             fx = block(fx)
         return fx
-
-    def unstructured_geo(self, x, fx, T=None):
-        if fx is not None:
-            fx = torch.cat((x, fx), -1)
-            fx = self.preprocess(fx)
-        else:
-            fx = self.preprocess(x)
-        fx = fx + self.placeholder[None, None, :]
-
-        if T is not None:
-            Time_emb = timestep_embedding(T, self.args.n_hidden).repeat(1, x.shape[1], 1)
-            Time_emb = self.time_fc(Time_emb)
-            fx = fx + Time_emb
-
-        for block in self.blocks:
-            fx = block(fx)
-        return fx
-
-    def forward(self, x, fx, T=None):
-        if self.args.geotype == 'unstructured':
-            return self.unstructured_geo(x, fx, T)
-        else:
-            return self.structured_geo(x, fx, T)
