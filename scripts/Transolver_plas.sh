@@ -15,7 +15,6 @@ python run.py \
 --n_hidden 128 \
 --n_heads 8 \
 --n_layers 8 \
---mlp_ratio 2 \
 --slice_num 64 \
 --unified_pos 0 \
 --ref 8 \

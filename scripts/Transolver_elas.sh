@@ -3,6 +3,7 @@ python run.py \
 --data_path /data/fno/ \
 --loader elas \
 --geotype unstructured \
+--scheduler CosineAnnealingLR \
 --space_dim 2 \
 --fun_dim 0 \
 --out_dim 1 \
