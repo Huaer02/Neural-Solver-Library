@@ -19,8 +19,12 @@ OutList = [None, OutConv1D, OutConv2D, OutConv3D]
 class Model(nn.Module):
     def __init__(self, args, bilinear=True, num_token=4, num_basis=12, s1=96, s2=96):
         super(Model, self).__init__()
-        self.__name__ = 'LSM'
+        self.__name__ = 'U-Net'
         self.args = args
+        if args.task == 'steady':
+            normtype = 'bn'
+        else:
+            normtype = 'in'  # when conducting dynamic tasks, use instance norm for stability
         ## embedding
         if args.unified_pos and args.geotype != 'unstructured':  # only for structured mesh
             self.pos = unified_pos_embedding(args.shapelist, args.ref)
@@ -34,10 +38,10 @@ class Model(nn.Module):
                                          nn.Linear(args.n_hidden, args.n_hidden))
         # geometry projection
         if self.args.geotype == 'unstructured':
-            self.fftproject_in = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes, s1,
-                                                             s2)
-            self.fftproject_out = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes, s1,
-                                                              s2)
+            self.fftproject_in = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes,
+                                                             s1, s2)
+            self.fftproject_out = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes,
+                                                              s1, s2)
             self.iphi = IPHI()
             patch_size = [(size + (16 - size % 16) % 16) // 16 for size in [s1, s2]]
             self.padding = [(16 - size % 16) % 16 for size in [s1, s2]]
@@ -45,16 +49,16 @@ class Model(nn.Module):
             patch_size = [(size + (16 - size % 16) % 16) // 16 for size in args.shapelist]
             self.padding = [(16 - size % 16) % 16 for size in args.shapelist]
         # multiscale modules
-        self.inc = ConvList[len(patch_size)](args.n_hidden, args.n_hidden)
-        self.down1 = DownList[len(patch_size)](args.n_hidden, args.n_hidden * 2)
-        self.down2 = DownList[len(patch_size)](args.n_hidden * 2, args.n_hidden * 4)
-        self.down3 = DownList[len(patch_size)](args.n_hidden * 4, args.n_hidden * 8)
+        self.inc = ConvList[len(patch_size)](args.n_hidden, args.n_hidden, normtype=normtype)
+        self.down1 = DownList[len(patch_size)](args.n_hidden, args.n_hidden * 2, normtype=normtype)
+        self.down2 = DownList[len(patch_size)](args.n_hidden * 2, args.n_hidden * 4, normtype=normtype)
+        self.down3 = DownList[len(patch_size)](args.n_hidden * 4, args.n_hidden * 8, normtype=normtype)
         factor = 2 if bilinear else 1
-        self.down4 = DownList[len(patch_size)](args.n_hidden * 8, args.n_hidden * 16 // factor)
-        self.up1 = UpList[len(patch_size)](args.n_hidden * 16, args.n_hidden * 8 // factor, bilinear)
-        self.up2 = UpList[len(patch_size)](args.n_hidden * 8, args.n_hidden * 4 // factor, bilinear)
-        self.up3 = UpList[len(patch_size)](args.n_hidden * 4, args.n_hidden * 2 // factor, bilinear)
-        self.up4 = UpList[len(patch_size)](args.n_hidden * 2, args.n_hidden, bilinear)
+        self.down4 = DownList[len(patch_size)](args.n_hidden * 8, args.n_hidden * 16 // factor, normtype=normtype)
+        self.up1 = UpList[len(patch_size)](args.n_hidden * 16, args.n_hidden * 8 // factor, bilinear, normtype=normtype)
+        self.up2 = UpList[len(patch_size)](args.n_hidden * 8, args.n_hidden * 4 // factor, bilinear, normtype=normtype)
+        self.up3 = UpList[len(patch_size)](args.n_hidden * 4, args.n_hidden * 2 // factor, bilinear, normtype=normtype)
+        self.up4 = UpList[len(patch_size)](args.n_hidden * 2, args.n_hidden, bilinear, normtype=normtype)
         self.outc = OutList[len(patch_size)](args.n_hidden, args.n_hidden)
         # projectors
         self.fc1 = nn.Linear(args.n_hidden, args.n_hidden)

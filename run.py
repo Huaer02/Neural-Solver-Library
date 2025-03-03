@@ -19,10 +19,12 @@ parser.add_argument('--batch-size', type=int, default=8, help='batch size')
 parser.add_argument("--gpu", type=str, default='0', help="GPU index to use")
 parser.add_argument('--max_grad_norm', type=float, default=None, help='make the training stable')
 parser.add_argument('--derivloss', type=bool, default=False, help='adopt the spatial derivate as regularization')
-parser.add_argument('--teacher_forcing', type=bool, default=True,
+parser.add_argument('--teacher_forcing', type=int, default=1,
                     help='adopt teacher forcing in autoregressive to speed up convergence')
 parser.add_argument('--scheduler', type=str, default='OneCycleLR',
-                    help='learning rate scheduler, select from [OneCycleLR, CosineAnnealingLR]')
+                    help='learning rate scheduler, select from [OneCycleLR, CosineAnnealingLR, StepLR]')
+parser.add_argument('--step_size', type=int, default=100, help='step size for StepLR scheduler')
+parser.add_argument('--gamma', type=float, default=0.5, help='decay parameter for StepLR scheduler')
 
 ## data
 parser.add_argument('--data_path', type=str, default='/data/fno/', help='data folder')
@@ -81,7 +83,7 @@ def main():
     elif args.task == 'dynamic_conditional':
         exp = Exp_Dynamic_Conditional(args)
     else:
-        exp = None
+        raise NotImplementedError
 
     if eval:
         exp.test()

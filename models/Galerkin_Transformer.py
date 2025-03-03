@@ -3,12 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from timm.models.layers import trunc_normal_
-from layers.Basic import MLP, Attention
+from layers.Basic import MLP, LinearAttention
 from layers.Embedding import timestep_embedding, unified_pos_embedding
 from einops import rearrange, repeat
+from einops.layers.torch import Rearrange
 
 
-class Transformer_block(nn.Module):
+class Galerkin_Transformer_block(nn.Module):
     """Transformer encoder block."""
 
     def __init__(
@@ -24,8 +25,8 @@ class Transformer_block(nn.Module):
         super().__init__()
         self.last_layer = last_layer
         self.ln_1 = nn.LayerNorm(hidden_dim)
-
-        self.Attn = Attention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout)
+        self.Attn = LinearAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads,
+                                    dropout=dropout, attn_type='galerkin')
         self.ln_2 = nn.LayerNorm(hidden_dim)
         self.mlp = MLP(hidden_dim, hidden_dim * mlp_ratio, hidden_dim, n_layers=0, res=False, act=act)
         if self.last_layer:
@@ -42,10 +43,10 @@ class Transformer_block(nn.Module):
 
 
 class Model(nn.Module):
-    ## speed up with flash attention
+    ## Factformer
     def __init__(self, args):
         super(Model, self).__init__()
-        self.__name__ = 'Transformer'
+        self.__name__ = 'Factformer'
         self.args = args
         ## embedding
         if args.unified_pos and args.geotype != 'unstructured':  # only for structured mesh
@@ -60,12 +61,12 @@ class Model(nn.Module):
                                          nn.Linear(args.n_hidden, args.n_hidden))
 
         ## models
-        self.blocks = nn.ModuleList([Transformer_block(num_heads=args.n_heads, hidden_dim=args.n_hidden,
-                                                       dropout=args.dropout,
-                                                       act=args.act,
-                                                       mlp_ratio=args.mlp_ratio,
-                                                       out_dim=args.out_dim,
-                                                       last_layer=(_ == args.n_layers - 1))
+        self.blocks = nn.ModuleList([Galerkin_Transformer_block(num_heads=args.n_heads, hidden_dim=args.n_hidden,
+                                                                dropout=args.dropout,
+                                                                act=args.act,
+                                                                mlp_ratio=args.mlp_ratio,
+                                                                out_dim=args.out_dim,
+                                                                last_layer=(_ == args.n_layers - 1))
                                      for _ in range(args.n_layers)])
         self.placeholder = nn.Parameter((1 / (args.n_hidden)) * torch.rand(args.n_hidden, dtype=torch.float))
         self.initialize_weights()

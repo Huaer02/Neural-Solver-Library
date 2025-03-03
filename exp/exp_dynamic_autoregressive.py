@@ -43,6 +43,9 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                                                             pct_start=self.args.pct_start)
         elif self.args.scheduler == 'CosineAnnealingLR':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.args.epochs)
+        elif self.args.scheduler == 'StepLR':
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.step_size, gamma=self.args.gamma)
+
         myloss = L2Loss(size_average=False)
 
         for ep in range(self.args.epochs):
@@ -80,7 +83,7 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
 
                 if self.args.scheduler == 'OneCycleLR':
                     scheduler.step()
-            if self.args.scheduler == 'CosineAnnealingLR':
+            if self.args.scheduler == 'CosineAnnealingLR' or self.args.scheduler == 'StepLR':
                 scheduler.step()
 
             train_loss_step = train_l2_step / (self.args.ntrain * float(self.args.T_out))
@@ -129,7 +132,10 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                 rel_err += myloss(pred.reshape(x.shape[0], -1), yy.reshape(x.shape[0], -1)).item()
                 if id < self.args.vis_num:
                     print('visual: ', id)
-                    visual(x, yy[:, :, -self.args.out_dim:], pred[:, :, -self.args.out_dim:], self.args, id)
+                    for t in range(self.args.T_out):
+                        visual(x, yy[:, :, self.args.out_dim * t:self.args.out_dim * (t + 1)],
+                               pred[:, :, self.args.out_dim * t:self.args.out_dim * (t + 1)], self.args,
+                               str(id) + '_' + str(t))
 
         rel_err /= self.args.ntest
         print("rel_err:{}".format(rel_err))
