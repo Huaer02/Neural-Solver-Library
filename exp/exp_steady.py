@@ -40,6 +40,8 @@ class Exp_Steady(Exp_Basic):
                                                             pct_start=self.args.pct_start)
         elif self.args.scheduler == 'CosineAnnealingLR':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.args.epochs)
+        elif self.args.scheduler == 'StepLR':
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.step_size, gamma=self.args.gamma)
         myloss = L2Loss(size_average=False)
         if self.args.derivloss:
             regloss = DerivLoss(size_average=False, shapelist=self.args.shapelist)
@@ -73,7 +75,7 @@ class Exp_Steady(Exp_Basic):
                 
                 if self.args.scheduler == 'OneCycleLR':
                     scheduler.step()
-            if self.args.scheduler == 'CosineAnnealingLR':
+            if self.args.scheduler == 'CosineAnnealingLR' or self.args.scheduler == 'StepLR':
                 scheduler.step()
 
             train_loss = train_loss / self.args.ntrain

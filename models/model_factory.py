@@ -1,8 +1,11 @@
-from models import Transolver, LSM, FNO, U_Net, Transformer, Factformer, Swin_Transformer, Galerkin_Transformer, GNOT
+from models import Transolver, LSM, FNO, U_Net, Transformer, Factformer, Swin_Transformer, Galerkin_Transformer, GNOT, \
+    U_NO, U_FNO
 
 
 def get_model(args):
     model_dict = {
+        'U_FNO': U_FNO,
+        'U_NO': U_NO,
         'GNOT': GNOT,
         'Galerkin_Transformer': Galerkin_Transformer,
         'Swin_Transformer': Swin_Transformer,

@@ -6,25 +6,19 @@ import torch.nn.functional as F
 from timm.models.layers import trunc_normal_
 from layers.Basic import MLP
 from layers.Embedding import timestep_embedding, unified_pos_embedding
-from layers.UNet_Blocks import DoubleConv1D, Down1D, Up1D, OutConv1D, DoubleConv2D, Down2D, Up2D, OutConv2D, \
-    DoubleConv3D, Down3D, Up3D, OutConv3D
+from layers.FNO_Layers import SpectralConv1d, SpectralConv2d, SpectralConv3d
 from layers.GeoFNO_Projection import SpectralConv2d_IrregularGeo, IPHI
+from models.U_Net import Model as U_Net
 
-ConvList = [None, DoubleConv1D, DoubleConv2D, DoubleConv3D]
-DownList = [None, Down1D, Down2D, Down3D]
-UpList = [None, Up1D, Up2D, Up3D]
-OutList = [None, OutConv1D, OutConv2D, OutConv3D]
+BlockList = [None, SpectralConv1d, SpectralConv2d, SpectralConv3d]
+ConvList = [None, nn.Conv1d, nn.Conv2d, nn.Conv3d]
 
 
 class Model(nn.Module):
-    def __init__(self, args, bilinear=True, s1=96, s2=96):
+    def __init__(self, args, s1=96, s2=96):
         super(Model, self).__init__()
-        self.__name__ = 'U-Net'
+        self.__name__ = 'FNO'
         self.args = args
-        if args.task == 'steady':
-            normtype = 'bn'
-        else:
-            normtype = 'in'  # when conducting dynamic tasks, use instance norm for stability
         ## embedding
         if args.unified_pos and args.geotype != 'unstructured':  # only for structured mesh
             self.pos = unified_pos_embedding(args.shapelist, args.ref)
@@ -38,44 +32,31 @@ class Model(nn.Module):
                                          nn.Linear(args.n_hidden, args.n_hidden))
         # geometry projection
         if self.args.geotype == 'unstructured':
-            self.fftproject_in = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes,
-                                                             s1, s2)
-            self.fftproject_out = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes,
-                                                              s1, s2)
+            self.fftproject_in = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes, s1,
+                                                             s2)
+            self.fftproject_out = SpectralConv2d_IrregularGeo(args.n_hidden, args.n_hidden, args.modes, args.modes, s1,
+                                                              s2)
             self.iphi = IPHI()
-            patch_size = [(size + (16 - size % 16) % 16) // 16 for size in [s1, s2]]
             self.padding = [(16 - size % 16) % 16 for size in [s1, s2]]
         else:
-            patch_size = [(size + (16 - size % 16) % 16) // 16 for size in args.shapelist]
             self.padding = [(16 - size % 16) % 16 for size in args.shapelist]
-        # multiscale modules
-        self.inc = ConvList[len(patch_size)](args.n_hidden, args.n_hidden, normtype=normtype)
-        self.down1 = DownList[len(patch_size)](args.n_hidden, args.n_hidden * 2, normtype=normtype)
-        self.down2 = DownList[len(patch_size)](args.n_hidden * 2, args.n_hidden * 4, normtype=normtype)
-        self.down3 = DownList[len(patch_size)](args.n_hidden * 4, args.n_hidden * 8, normtype=normtype)
-        factor = 2 if bilinear else 1
-        self.down4 = DownList[len(patch_size)](args.n_hidden * 8, args.n_hidden * 16 // factor, normtype=normtype)
-        self.up1 = UpList[len(patch_size)](args.n_hidden * 16, args.n_hidden * 8 // factor, bilinear, normtype=normtype)
-        self.up2 = UpList[len(patch_size)](args.n_hidden * 8, args.n_hidden * 4 // factor, bilinear, normtype=normtype)
-        self.up3 = UpList[len(patch_size)](args.n_hidden * 4, args.n_hidden * 2 // factor, bilinear, normtype=normtype)
-        self.up4 = UpList[len(patch_size)](args.n_hidden * 2, args.n_hidden, bilinear, normtype=normtype)
-        self.outc = OutList[len(patch_size)](args.n_hidden, args.n_hidden)
+        self.conv0 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
+                                                  *[args.modes for _ in range(len(self.padding))])
+        self.conv1 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
+                                                  *[args.modes for _ in range(len(self.padding))])
+        self.conv2 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
+                                                  *[args.modes for _ in range(len(self.padding))])
+        self.conv3 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
+                                                  *[args.modes for _ in range(len(self.padding))])
+        self.w0 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
+        self.w1 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
+        self.w2 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
+        self.w3 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
+        self.u_net2 = U_Net(args)
+        self.u_net3 = U_Net(args)
         # projectors
         self.fc1 = nn.Linear(args.n_hidden, args.n_hidden)
         self.fc2 = nn.Linear(args.n_hidden, args.out_dim)
-
-    def multiscale(self, x):
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x4 = self.down3(x3)
-        x5 = self.down4(x4)
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
-        x = self.outc(x)
-        return x
 
     def structured_geo(self, x, fx, T=None):
         B, N, _ = x.shape
@@ -97,7 +78,28 @@ class Model(nn.Module):
                 x = F.pad(x, [0, self.padding[1], 0, self.padding[0]])
             elif len(self.args.shapelist) == 3:
                 x = F.pad(x, [0, self.padding[2], 0, self.padding[1], 0, self.padding[0]])
-        x = self.multiscale(x) ## U-Net
+
+        x1 = self.conv0(x)
+        x2 = self.w0(x)
+        x = x1 + x2
+        x = F.gelu(x)
+
+        x1 = self.conv1(x)
+        x2 = self.w1(x)
+        x = x1 + x2
+        x = F.gelu(x)
+
+        x1 = self.conv2(x)
+        x2 = self.w2(x)
+        x3 = self.u_net2.multiscale(x)
+        x = x1 + x2 + x3
+        x = F.gelu(x)
+
+        x1 = self.conv3(x)
+        x2 = self.w3(x)
+        x3 = self.u_net3.multiscale(x)
+        x = x1 + x2 + x3
+
         if not all(item == 0 for item in self.padding):
             if len(self.args.shapelist) == 2:
                 x = x[..., :-self.padding[0], :-self.padding[1]]
@@ -123,7 +125,28 @@ class Model(nn.Module):
             fx = fx + Time_emb
 
         x = self.fftproject_in(fx.permute(0, 2, 1), x_in=original_pos, iphi=self.iphi, code=None)
-        x = self.multiscale(x) ## U-Net
+
+        x1 = self.conv0(x)
+        x2 = self.w0(x)
+        x = x1 + x2
+        x = F.gelu(x)
+
+        x1 = self.conv1(x)
+        x2 = self.w1(x)
+        x = x1 + x2
+        x = F.gelu(x)
+
+        x1 = self.conv2(x)
+        x2 = self.w2(x)
+        x3 = self.u_net2.multiscale(x)
+        x = x1 + x2 + x3
+        x = F.gelu(x)
+
+        x1 = self.conv3(x)
+        x2 = self.w3(x)
+        x3 = self.u_net3.multiscale(x)
+        x = x1 + x2 + x3
+
         x = self.fftproject_out(x, x_out=original_pos, iphi=self.iphi, code=None).permute(0, 2, 1)
         x = self.fc1(x)
         x = F.gelu(x)

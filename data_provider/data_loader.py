@@ -203,10 +203,10 @@ class pipe(object):
         pos_train = pos.repeat(self.ntrain, 1, 1)
         pos_test = pos.repeat(self.ntest, 1, 1)
 
-        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_train, x_train, y_train),
+        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_train, pos_train, y_train),
                                                    batch_size=self.batch_size,
                                                    shuffle=True)
-        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_test, x_test, y_test),
+        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_test, pos_test, y_test),
                                                   batch_size=self.batch_size,
                                                   shuffle=False)
         print("Dataloading is over.")
@@ -270,10 +270,10 @@ class airfoil(object):
         pos_train = pos.repeat(self.ntrain, 1, 1)
         pos_test = pos.repeat(self.ntest, 1, 1)
 
-        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_train, x_train, y_train),
+        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_train, pos_train, y_train),
                                                    batch_size=self.batch_size,
                                                    shuffle=True)
-        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_test, x_test, y_test),
+        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_test, pos_test, y_test),
                                                   batch_size=self.batch_size,
                                                   shuffle=False)
         print("Dataloading is over.")
