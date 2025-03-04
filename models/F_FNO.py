@@ -6,9 +6,8 @@ import torch.nn.functional as F
 from timm.models.layers import trunc_normal_
 from layers.Basic import MLP
 from layers.Embedding import timestep_embedding, unified_pos_embedding
-from layers.FNO_Layers import SpectralConv1d, SpectralConv2d, SpectralConv3d
+from layers.FFNO_Layers import SpectralConv1d, SpectralConv2d, SpectralConv3d
 from layers.GeoFNO_Projection import SpectralConv2d_IrregularGeo, IPHI
-from models.U_Net import Model as U_Net
 
 BlockList = [None, SpectralConv1d, SpectralConv2d, SpectralConv3d]
 ConvList = [None, nn.Conv1d, nn.Conv2d, nn.Conv3d]
@@ -17,7 +16,7 @@ ConvList = [None, nn.Conv1d, nn.Conv2d, nn.Conv3d]
 class Model(nn.Module):
     def __init__(self, args, s1=96, s2=96):
         super(Model, self).__init__()
-        self.__name__ = 'U-FNO'
+        self.__name__ = 'F-FNO'
         self.args = args
         ## embedding
         if args.unified_pos and args.geotype != 'unstructured':  # only for structured mesh
@@ -40,20 +39,11 @@ class Model(nn.Module):
             self.padding = [(16 - size % 16) % 16 for size in [s1, s2]]
         else:
             self.padding = [(16 - size % 16) % 16 for size in args.shapelist]
-        self.conv0 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
-                                                  *[args.modes for _ in range(len(self.padding))])
-        self.conv1 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
-                                                  *[args.modes for _ in range(len(self.padding))])
-        self.conv2 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
-                                                  *[args.modes for _ in range(len(self.padding))])
-        self.conv3 = BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
-                                                  *[args.modes for _ in range(len(self.padding))])
-        self.w0 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
-        self.w1 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
-        self.w2 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
-        self.w3 = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
-        self.u_net2 = U_Net(args)
-        self.u_net3 = U_Net(args)
+
+        self.spectral_layers = nn.ModuleList([])
+        for _ in range(args.n_layers):
+            self.spectral_layers.append(BlockList[len(self.padding)](args.n_hidden, args.n_hidden,
+                                                                     *[args.modes for _ in range(len(self.padding))]))
         # projectors
         self.fc1 = nn.Linear(args.n_hidden, args.n_hidden)
         self.fc2 = nn.Linear(args.n_hidden, args.out_dim)
@@ -79,26 +69,8 @@ class Model(nn.Module):
             elif len(self.args.shapelist) == 3:
                 x = F.pad(x, [0, self.padding[2], 0, self.padding[1], 0, self.padding[0]])
 
-        x1 = self.conv0(x)
-        x2 = self.w0(x)
-        x = x1 + x2
-        x = F.gelu(x)
-
-        x1 = self.conv1(x)
-        x2 = self.w1(x)
-        x = x1 + x2
-        x = F.gelu(x)
-
-        x1 = self.conv2(x)
-        x2 = self.w2(x)
-        x3 = self.u_net2.multiscale(x)
-        x = x1 + x2 + x3
-        x = F.gelu(x)
-
-        x1 = self.conv3(x)
-        x2 = self.w3(x)
-        x3 = self.u_net3.multiscale(x)
-        x = x1 + x2 + x3
+        for i in range(self.args.n_layers):
+            x = x + self.spectral_layers[i](x)
 
         if not all(item == 0 for item in self.padding):
             if len(self.args.shapelist) == 2:
@@ -125,28 +97,8 @@ class Model(nn.Module):
             fx = fx + Time_emb
 
         x = self.fftproject_in(fx.permute(0, 2, 1), x_in=original_pos, iphi=self.iphi, code=None)
-
-        x1 = self.conv0(x)
-        x2 = self.w0(x)
-        x = x1 + x2
-        x = F.gelu(x)
-
-        x1 = self.conv1(x)
-        x2 = self.w1(x)
-        x = x1 + x2
-        x = F.gelu(x)
-
-        x1 = self.conv2(x)
-        x2 = self.w2(x)
-        x3 = self.u_net2.multiscale(x)
-        x = x1 + x2 + x3
-        x = F.gelu(x)
-
-        x1 = self.conv3(x)
-        x2 = self.w3(x)
-        x3 = self.u_net3.multiscale(x)
-        x = x1 + x2 + x3
-
+        for i in range(self.args.n_layers):
+            x = x + self.spectral_layers[i](x)
         x = self.fftproject_out(x, x_out=original_pos, iphi=self.iphi, code=None).permute(0, 2, 1)
         x = self.fc1(x)
         x = F.gelu(x)

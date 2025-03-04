@@ -21,7 +21,7 @@ BlockList = [None, SpectralConv1d, SpectralConv2d, SpectralConv3d]
 class Model(nn.Module):
     def __init__(self, args, bilinear=True, s1=96, s2=96):
         super(Model, self).__init__()
-        self.__name__ = 'LSM'
+        self.__name__ = 'U_NO'
         self.args = args
         if args.task == 'steady':
             normtype = 'bn'
