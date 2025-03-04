@@ -1,9 +1,10 @@
 from models import Transolver, LSM, FNO, U_Net, Transformer, Factformer, Swin_Transformer, Galerkin_Transformer, GNOT, \
-    U_NO, U_FNO, F_FNO, ONO
+    U_NO, U_FNO, F_FNO, ONO, MWT
 
 
 def get_model(args):
     model_dict = {
+        'MWT': MWT,
         'ONO': ONO,
         'F_FNO': F_FNO,
         'U_FNO': U_FNO,
