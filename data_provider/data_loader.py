@@ -3,7 +3,10 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import h5py
 import scipy.io as scio
+
+from torch.utils.data import Dataset
 from utils.normalizer import UnitTransformer
 
 
@@ -405,3 +408,78 @@ class ns(object):
 
         print("Dataloading is over.")
         return train_loader, test_loader, [s1, s2]
+    
+
+class pdebench(object):
+    def __init__(self, args):
+        self.file_path = os.path.join(args.data_path, args.file_name)
+        self.ntrain = args.ntrain
+        self.T_in = args.T_in
+        self.T_out = args.T_out
+        self.batch_size = args.batch_size
+    
+    def get_loader(self):
+        train_dataset = pdebench_dataset(file_path=self.file_path, ntrain=self.ntrain, test=False, T_in=self.T_in, T_out=self.T_out)
+        test_dataset = pdebench_dataset(file_path=self.file_path, ntrain=self.ntrain, test=True, T_in=self.T_in, T_out=self.T_out)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batch_size, shuffle=True)
+        
+        return train_loader, test_loader
+
+class pdebench_dataset(Dataset):
+    def __init__(self,
+                 file_path: str,
+                 ntrain: int, 
+                 test: bool,
+                 T_in: int,
+                 T_out: int):
+        self.file_path = file_path
+        self.ntrain = ntrain # TODO: maybe change this to train_ratio
+        self.test = test
+        with h5py.File(self.file_path, "r") as h5_file:
+            data_list = sorted(h5_file.keys())
+        if not self.test:
+            self.data_list = data_list[:self.ntrain]
+        else:
+            self.data_list = data_list[self.ntrain:]
+        self.T_in = args.T_in
+        self.T_out = arg.T_out
+    
+    def __len__(self):
+        return len(self.data_list)
+    
+    def __getitem__(self, idx):
+        with h5py.File(self.file_path, "r") as h5_file:
+            data_group = h5_file[self.data_list[idx]]
+
+            # data dim = [t, x1, ..., xd, v]
+            data = np.array(data_group["data"], dtype="f")
+            data = torch.tensor(data, dtype=torch.float)
+
+            # Extract spatial dimension of data
+            dim = len(data.shape) - 2
+
+            # x, y and z are 1-D arrays
+            # Convert the spatial coordinates to meshgrid
+            if dim == 1:
+                grid = np.array(data_group["grid"]["x"], dtype="f")
+                grid = torch.tensor(grid, dtype=torch.float).unsqueeze(-1)
+            elif dim == 2:
+                x = np.array(data_group["grid"]["x"], dtype="f")
+                y = np.array(data_group["grid"]["y"], dtype="f")
+                x = torch.tensor(x, dtype=torch.float)
+                y = torch.tensor(y, dtype=torch.float)
+                X, Y = torch.meshgrid(x, y, indexing="ij")
+                grid = torch.stack((X, Y), axis=-1)
+            elif dim == 3:
+                x = np.array(data_group["grid"]["x"], dtype="f")
+                y = np.array(data_group["grid"]["y"], dtype="f")
+                z = np.array(data_group["grid"]["z"], dtype="f")
+                x = torch.tensor(x, dtype=torch.float)
+                y = torch.tensor(y, dtype=torch.float)
+                z = torch.tensor(z, dtype=torch.float)
+                X, Y, Z = torch.meshgrid(x, y, z, indexing="ij")
+                grid = torch.stack((X, Y, Z), axis=-1)
+
+        return grid, data[:self.T_in, :], data[self.T_in:self.T_in+self.T_out, :]
+        
