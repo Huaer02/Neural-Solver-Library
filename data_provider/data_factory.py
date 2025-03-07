@@ -1,7 +1,9 @@
-from data_provider.data_loader import airfoil, ns, darcy, pipe, elas, plas
+from data_provider.data_loader import airfoil, ns, darcy, pipe, elas, plas, pdebench
+
 
 def get_data(args):
     data_dict = {
+        'pdebench': pdebench,
         'elas': elas,
         'pipe': pipe,
         'airfoil': airfoil,

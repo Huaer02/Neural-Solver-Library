@@ -29,6 +29,7 @@ parser.add_argument('--gamma', type=float, default=0.5, help='decay parameter fo
 ## data
 parser.add_argument('--data_path', type=str, default='/data/fno/', help='data folder')
 parser.add_argument('--loader', type=str, default='airfoil', help='type of data loader')
+parser.add_argument('--train_ratio', type=float, default=0.8, help='training data ratio')
 parser.add_argument('--ntrain', type=int, default=1000, help='training data numbers')
 parser.add_argument('--ntest', type=int, default=200, help='test data numbers')
 parser.add_argument('--normalize', type=bool, default=False, help='make normalization to output')

@@ -6,7 +6,8 @@ NeuralSolver is an open-source library for deep learning researchers, especially
 
 This library current supports the following benchmarks:
 
-- Standard Benchmarks
+- Standard Benchmarks from [[FNO]](https://arxiv.org/abs/2010.08895) and [[geo-FNO]](https://arxiv.org/abs/2207.05209)
+- PDEBench [[NeurIPS 2022 Track Datasets and Benchmarks]](https://arxiv.org/abs/2210.07182)
 
 Here is the model list:
 

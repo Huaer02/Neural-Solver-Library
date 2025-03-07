@@ -408,57 +408,63 @@ class ns(object):
 
         print("Dataloading is over.")
         return train_loader, test_loader, [s1, s2]
-    
+
 
 class pdebench(object):
     def __init__(self, args):
-        self.file_path = os.path.join(args.data_path, args.file_name)
-        self.ntrain = args.ntrain
+        self.file_path = args.data_path
+        self.train_ratio = args.train_ratio
         self.T_in = args.T_in
         self.T_out = args.T_out
         self.batch_size = args.batch_size
-    
+        self.out_dim = args.out_dim
+
     def get_loader(self):
-        train_dataset = pdebench_dataset(file_path=self.file_path, ntrain=self.ntrain, test=False, T_in=self.T_in, T_out=self.T_out)
-        test_dataset = pdebench_dataset(file_path=self.file_path, ntrain=self.ntrain, test=True, T_in=self.T_in, T_out=self.T_out)
+        train_dataset = pdebench_dataset(file_path=self.file_path, train_ratio=self.train_ratio, test=False,
+                                         T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
+        test_dataset = pdebench_dataset(file_path=self.file_path, train_ratio=self.train_ratio, test=True,
+                                        T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batch_size, shuffle=True)
-        
-        return train_loader, test_loader
+
+        return train_loader, test_loader, train_dataset.shapelist
+
 
 class pdebench_dataset(Dataset):
     def __init__(self,
                  file_path: str,
-                 ntrain: int, 
+                 train_ratio: int,
                  test: bool,
                  T_in: int,
-                 T_out: int):
+                 T_out: int,
+                 out_dim: int):
         self.file_path = file_path
-        self.ntrain = ntrain # TODO: maybe change this to train_ratio
-        self.test = test
         with h5py.File(self.file_path, "r") as h5_file:
             data_list = sorted(h5_file.keys())
+            self.shapelist = h5_file[data_list[0]]["data"].shape[1:-1]  # obtain shapelist
+        self.ntrain = int(len(data_list) * train_ratio)
+        self.test = test
         if not self.test:
             self.data_list = data_list[:self.ntrain]
         else:
             self.data_list = data_list[self.ntrain:]
-        self.T_in = args.T_in
-        self.T_out = arg.T_out
-    
+        self.T_in = T_in
+        self.T_out = T_out
+        self.out_dim = out_dim
+
     def __len__(self):
         return len(self.data_list)
-    
+
     def __getitem__(self, idx):
         with h5py.File(self.file_path, "r") as h5_file:
             data_group = h5_file[self.data_list[idx]]
 
             # data dim = [t, x1, ..., xd, v]
             data = np.array(data_group["data"], dtype="f")
-            data = torch.tensor(data, dtype=torch.float)
-
-            # Extract spatial dimension of data
             dim = len(data.shape) - 2
-
+            T, *_, V = data.shape
+            # change data shape
+            data = torch.tensor(data, dtype=torch.float).movedim(0, -2).contiguous().reshape(*self.shapelist, -1)
             # x, y and z are 1-D arrays
             # Convert the spatial coordinates to meshgrid
             if dim == 1:
@@ -481,5 +487,5 @@ class pdebench_dataset(Dataset):
                 X, Y, Z = torch.meshgrid(x, y, z, indexing="ij")
                 grid = torch.stack((X, Y, Z), axis=-1)
 
-        return grid, data[:self.T_in, :], data[self.T_in:self.T_in+self.T_out, :]
-        
+        return grid, data[:, :self.T_in * self.out_dim], \
+            data[:, (self.T_in) * self.out_dim:(self.T_in + self.T_out) * self.out_dim]
