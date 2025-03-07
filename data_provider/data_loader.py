@@ -410,7 +410,7 @@ class ns(object):
         return train_loader, test_loader, [s1, s2]
 
 
-class pdebench(object):
+class pdebench_autoregressive(object):
     def __init__(self, args):
         self.file_path = args.data_path
         self.train_ratio = args.train_ratio
@@ -420,9 +420,9 @@ class pdebench(object):
         self.out_dim = args.out_dim
 
     def get_loader(self):
-        train_dataset = pdebench_dataset(file_path=self.file_path, train_ratio=self.train_ratio, test=False,
+        train_dataset = pdebench_dataset_autoregressive(file_path=self.file_path, train_ratio=self.train_ratio, test=False,
                                          T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
-        test_dataset = pdebench_dataset(file_path=self.file_path, train_ratio=self.train_ratio, test=True,
+        test_dataset = pdebench_dataset_autoregressive(file_path=self.file_path, train_ratio=self.train_ratio, test=True,
                                         T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batch_size, shuffle=True)
@@ -430,7 +430,7 @@ class pdebench(object):
         return train_loader, test_loader, train_dataset.shapelist
 
 
-class pdebench_dataset(Dataset):
+class pdebench_dataset_autoregressive(Dataset):
     def __init__(self,
                  file_path: str,
                  train_ratio: int,
@@ -489,3 +489,45 @@ class pdebench_dataset(Dataset):
 
         return grid, data[:, :self.T_in * self.out_dim], \
             data[:, (self.T_in) * self.out_dim:(self.T_in + self.T_out) * self.out_dim]
+
+
+class pdebench_steady_darcy(object):
+    def __init__(self, args):
+        self.file_path = args.data_path
+        self.ntrain = args.ntrain
+        self.downsamplex = args.downsamplex
+        self.downsampley = args.downsampley
+        self.batch_size = args.batch_size
+
+    def get_loader(self):
+        r1 = self.downsamplex
+        r2 = self.downsampley
+        s1 = int(((128 - 1) / r1) + 1)
+        s2 = int(((128 - 1) / r2) + 1)
+        with h5py.File(self.file_path, "r") as h5_file:
+            data_nu = np.array(h5_file['nu'], dtype='f')[:, ::r1, ::r2][:, :s1, :s2]
+            data_solution = np.array(h5_file['tensor'], dtype='f')[:, ::r1, ::r2][:, :s1, :s2]
+            data_nu = torch.from_numpy(data_nu)
+            data_solution = torch.from_numpy(data_solution)
+            x = np.array(h5_file['x-coordinate'])
+            y = np.array(h5_file['y-coordinate'])
+            x = torch.tensor(x, dtype=torch.float)
+            y = torch.tensor(y, dtype=torch.float)
+            X, Y = torch.meshgrid(x, y, indexing="ij")
+            grid = torch.stack((X, Y), axis=-1)[None, ::r1, ::r2, :][:, :s1, :s2, :]
+
+        grid = grid.repeat(data_nu.shape[0], 1, 1, 1)
+        
+        pos_train = grid[:self.ntrain, :, :, :].reshape(self.ntrain, -1, 2)
+        x_train = data_nu[:self.ntrain, :, :].reshape(self.ntrain, -1, 1)
+        y_train = data_solution[:self.ntrain, 0, :, :].reshape(self.ntrain, -1, 1) # solutions only have 1 channel
+        
+        pos_test = grid[self.ntrain:, :, :, :].reshape(data_nu.shape[0]-self.ntrain, -1, 2)
+        x_test = data_nu[self.ntrain:, :, :].reshape(data_nu.shape[0]-self.ntrain, -1, 1)
+        y_test = data_solution[self.ntrain:, 0, :, :].reshape(data_nu.shape[0]-self.ntrain, -1, 1) # solutions only have 1 channel
+        
+        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_train, x_train, y_train),
+                                                   batch_size=self.batch_size, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_test, x_test, y_test),
+                                                  batch_size=self.batch_size, shuffle=False)
+        return train_loader, test_loader, [s1, s2]

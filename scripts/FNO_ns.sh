@@ -3,7 +3,7 @@ python run.py \
 --data_path /data/fno/ \
 --loader ns \
 --geotype structured_2D \
---task dynamic_autoregressive_check \
+--task dynamic_autoregressive \
 --teacher_forcing 0 \
 --lr 0.0005 \
 --weight_decay 1e-4 \
@@ -11,7 +11,7 @@ python run.py \
 --space_dim 2 \
 --fun_dim 10 \
 --out_dim 1 \
---model LSM \
+--model FNO \
 --n_hidden 64 \
 --n_heads 8 \
 --n_layers 8 \
