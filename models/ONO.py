@@ -24,11 +24,13 @@ def psd_safe_cholesky(A, upper=False, out=None, jitter=None):
     """
     try:
         L = torch.linalg.cholesky(A, upper=upper, out=out)
+        if torch.isnan(L).any():
+            raise RuntimeError
         return L
     except RuntimeError as e:
         isnan = torch.isnan(A)
         if isnan.any():
-            raise NanError(
+            raise ValueError(
                 f"cholesky_cpu: {isnan.sum().item()} of {A.numel()} elements of the {A.shape} tensor are NaN."
             )
 
@@ -61,7 +63,7 @@ class ONOBlock(nn.Module):
             hidden_dim: int,
             dropout: float,
             act='gelu',
-            attn_type='galerkin',
+            attn_type='l2',
             mlp_ratio=4,
             last_layer=False,
             momentum=0.9,

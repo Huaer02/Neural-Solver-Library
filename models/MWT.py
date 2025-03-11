@@ -33,7 +33,7 @@ class Model(nn.Module):
             self.preprocess = MLP(args.fun_dim + args.space_dim, args.n_hidden * 2, self.WMT_dim,
                                   n_layers=0, res=False, act=args.act)
         if args.time_input:
-            self.time_fc = nn.Sequential(nn.Linear(args.n_hidden, self.WMT_dim), nn.SiLU(),
+            self.time_fc = nn.Sequential(nn.Linear(self.WMT_dim, args.n_hidden), nn.SiLU(),
                                          nn.Linear(args.n_hidden, self.WMT_dim))
         # geometry projection
         if self.args.geotype == 'unstructured':
@@ -42,6 +42,7 @@ class Model(nn.Module):
                                                               s2)
             self.iphi = IPHI()
             self.augmented_resolution = [s1, s2]
+            self.padding = [(16 - size % 16) % 16 for size in [s1, s2]]
         else:
             target = 2 ** (math.ceil(np.log2(max(args.shapelist))))
             self.padding = [(target - size) for size in args.shapelist]
