@@ -68,16 +68,16 @@ class Model(nn.Module):
                                                         *[max(1,min(args.modes, min(self.augmented_resolution) // 2)) for _ in
                                                           range(len(self.padding))])
         self.process2_down = BlockList[len(patch_size)](args.n_hidden * 2, args.n_hidden * 2,
-                                                        *[max(1,min(args.modes, min(args.shapelist) // 4)) for _ in
+                                                        *[max(1,min(args.modes, min(self.augmented_resolution) // 4)) for _ in
                                                           range(len(self.padding))])
         self.process3_down = BlockList[len(patch_size)](args.n_hidden * 4, args.n_hidden * 4,
-                                                        *[max(1,min(args.modes, min(args.shapelist) // 8)) for _ in
+                                                        *[max(1,min(args.modes, min(self.augmented_resolution) // 8)) for _ in
                                                           range(len(self.padding))])
         self.process4_down = BlockList[len(patch_size)](args.n_hidden * 8, args.n_hidden * 8,
-                                                        *[max(1,min(args.modes, min(args.shapelist) // 16)) for _ in
+                                                        *[max(1,min(args.modes, min(self.augmented_resolution) // 16)) for _ in
                                                           range(len(self.padding))])
         self.process5_down = BlockList[len(patch_size)](args.n_hidden * 16 // factor, args.n_hidden * 16 // factor,
-                                                        *[max(1,min(args.modes, min(args.shapelist) // 32)) for _ in
+                                                        *[max(1,min(args.modes, min(self.augmented_resolution) // 32)) for _ in
                                                           range(len(self.padding))])
         self.w1_down = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
         self.w2_down = ConvList[len(self.padding)](args.n_hidden * 2, args.n_hidden * 2, 1)
@@ -89,16 +89,16 @@ class Model(nn.Module):
                                                       *[max(1,min(args.modes, min(self.augmented_resolution) // 2)) for _ in
                                                         range(len(self.padding))])
         self.process2_up = BlockList[len(patch_size)](args.n_hidden * 2 // factor, args.n_hidden * 2 // factor,
-                                                      *[max(1,min(args.modes, min(args.shapelist) // 4)) for _ in
+                                                      *[max(1,min(args.modes, min(self.augmented_resolution) // 4)) for _ in
                                                         range(len(self.padding))])
         self.process3_up = BlockList[len(patch_size)](args.n_hidden * 4 // factor, args.n_hidden * 4 // factor,
-                                                      *[max(1,min(args.modes, min(args.shapelist) // 8)) for _ in
+                                                      *[max(1,min(args.modes, min(self.augmented_resolution) // 8)) for _ in
                                                         range(len(self.padding))])
         self.process4_up = BlockList[len(patch_size)](args.n_hidden * 8 // factor, args.n_hidden * 8 // factor,
-                                                      *[max(1,min(args.modes, min(args.shapelist) // 16)) for _ in
+                                                      *[max(1,min(args.modes, min(self.augmented_resolution) // 16)) for _ in
                                                         range(len(self.padding))])
         self.process5_up = BlockList[len(patch_size)](args.n_hidden * 16 // factor, args.n_hidden * 16 // factor,
-                                                      *[max(1,min(args.modes, min(args.shapelist) // 32)) for _ in
+                                                      *[max(1,min(args.modes, min(self.augmented_resolution) // 32)) for _ in
                                                         range(len(self.padding))])
         self.w1_up = ConvList[len(self.padding)](args.n_hidden, args.n_hidden, 1)
         self.w2_up = ConvList[len(self.padding)](args.n_hidden * 2 // factor, args.n_hidden * 2 // factor, 1)
