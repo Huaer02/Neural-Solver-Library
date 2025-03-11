@@ -6,7 +6,7 @@ from timm.models.layers import trunc_normal_
 from einops import repeat, rearrange
 from torch.nn import functional as F
 from layers.Basic import MLP, LinearAttention, ACTIVATION
-
+from layers.Embedding import timestep_embedding, unified_pos_embedding
 
 class GNOT_block(nn.Module):
     """Transformer encoder block in MOE style."""

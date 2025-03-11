@@ -544,7 +544,7 @@ class car_design(object):
         self.test_fold_id = 0
 
     def get_samples(self, obj_path):
-        folds = [f'param{i}' for i in range(9)] 
+        folds = [f'param{i}' for i in range(9)]
         samples = []
         for fold in folds:
             fold_samples = []

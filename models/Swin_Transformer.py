@@ -11,6 +11,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from layers.Basic import MLP
+from layers.Embedding import timestep_embedding, unified_pos_embedding
 
 
 def window_partition(x, window_size):
@@ -231,8 +232,8 @@ class SwinTransformerBlock(nn.Module):
                 shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
                 # partition windows
                 x_windows = window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
-            else:
-                x_windows = WindowProcess.apply(x, B, H, W, C, -self.shift_size, self.window_size)
+            # else:
+            #     x_windows = WindowProcess.apply(x, B, H, W, C, -self.shift_size, self.window_size)
         else:
             shifted_x = x
             # partition windows
@@ -251,8 +252,8 @@ class SwinTransformerBlock(nn.Module):
             if not self.fused_window_process:
                 shifted_x = window_reverse(attn_windows, self.window_size, H, W)  # B H' W' C
                 x = torch.roll(shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
-            else:
-                x = WindowProcessReverse.apply(attn_windows, B, H, W, C, self.shift_size, self.window_size)
+            # else:
+            #     x = WindowProcessReverse.apply(attn_windows, B, H, W, C, self.shift_size, self.window_size)
         else:
             shifted_x = window_reverse(attn_windows, self.window_size, H, W)  # B H' W' C
             x = shifted_x
