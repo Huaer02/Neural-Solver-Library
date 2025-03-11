@@ -1,15 +1,17 @@
 python run.py \
 --gpu 0 \
---data_path /data/fno/1D_diff-sorp_NA_NA.h5 \
---loader pdebench \
---geotype structured_1D \
---task dynamic_autoregressive \
+--data_path /data/fno/2D_DarcyFlow_beta0.01_Train.hdf5 \
+--loader pdebench_steady_darcy \
+--geotype structured_2D \
+--task steady \
 --teacher_forcing 0 \
 --lr 0.0005 \
 --weight_decay 1e-4 \
 --scheduler StepLR \
---space_dim 1 \
---fun_dim 10 \
+--downsamplex 1 \
+--downsampley 1 \
+--space_dim 2 \
+--fun_dim 1 \
 --out_dim 1 \
 --model FNO \
 --n_hidden 64 \
@@ -20,4 +22,5 @@ python run.py \
 --batch-size 20 \
 --epochs 500 \
 --eval 0 \
+--ntrain 8000 \
 --save_name pdebench_FNO
