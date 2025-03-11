@@ -241,7 +241,7 @@ class Model(nn.Module):
     def unstructured_geo(self, x, fx, T=None):
         raise ValueError('Factformer does not support unstructured geometry, please try to integrate GeoFNO layer')
 
-    def forward(self, x, fx, T=None):
+    def forward(self, x, fx, T=None, geo=None):
         if self.args.geotype == 'unstructured':
             return self.unstructured_geo(x, fx, T)
         else:

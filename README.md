@@ -7,9 +7,10 @@ NeuralSolver is an open-source library for deep learning researchers, especially
 This library current supports the following benchmarks:
 
 - Standard Benchmarks from [[FNO]](https://arxiv.org/abs/2010.08895) and [[geo-FNO]](https://arxiv.org/abs/2207.05209)
-- PDEBench [[NeurIPS 2022 Track Datasets and Benchmarks]](https://arxiv.org/abs/2210.07182)
+- PDEBench [[NeurIPS 2022 Track Datasets and Benchmarks]](https://arxiv.org/abs/2210.07182) for benchmarking autoregressive tasks
+- ShapeNet-Car from [[TOG 2018]](https://dl.acm.org/doi/abs/10.1145/3197517.3201325) for benchmarking industrial design tasks
 
-Here is the model list:
+Here is the model list of neural PDE solvers:
 
 - [x] **Transolver** - Transolver: A Fast Transformer Solver for PDEs on General Geometries [[ICML 2024]](https://arxiv.org/abs/2402.02366)
 - [x] **ONO** - Improved Operator Learning by Orthogonal Attention [[ICML 2024]](https://arxiv.org/abs/2310.12487v3)
@@ -24,10 +25,16 @@ Here is the model list:
 - [x] **FNO** - Fourier Neural Operator for Parametric Partial Differential Equations [[ICLR 2021]](https://arxiv.org/pdf/2010.08895)
 - [x] **Transformer** - Attention Is All You Need [[NeurIPS 2017]](https://arxiv.org/pdf/1706.03762)
 
-Some vision backbones can be good baselines for tasks in structured geometries.
+Some vision backbones can be good baselines for tasks in structured geometries:
 
 - [x] **Swin Transformer** - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows [[ICCV 2021]](https://arxiv.org/abs/2103.14030)
 - [x] **U-Net** - U-Net: Convolutional Networks for Biomedical Image Segmentation [[MICCAI 2015]](https://arxiv.org/pdf/1505.04597)
+
+Besides, some classical geometric deep learning models are also included for design task with irregular geometries:
+
+- [x] **PointNet** - PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation [[CVPR 2017]](https://arxiv.org/pdf/1612.00593)
+- [x] **GraphSAGE** - Inductive Representation Learning on Large Graphs [[NeurIPS 2017]](https://arxiv.org/pdf/1706.02216)
+- [x] **Graph-UNet** - Graph U-Nets [[ICML 2019]](https://arxiv.org/pdf/1905.05178)
 
 
 ## Usage

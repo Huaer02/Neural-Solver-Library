@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from tqdm import *
 from exp.exp_steady import Exp_Steady
+from exp.exp_steady_design import Exp_Steady_Design
 from exp.exp_dynamic_conditional import Exp_Dynamic_Conditional
 from exp.exp_dynamic_autoregressive import Exp_Dynamic_Autoregressive
 
@@ -42,6 +43,7 @@ parser.add_argument('--out_dim', type=int, default=1, help='output observation d
 parser.add_argument('--shapelist', type=list, default=None, help='for structured geometry')
 parser.add_argument('--downsamplex', type=int, default=1, help='downsample rate in x-axis')
 parser.add_argument('--downsampley', type=int, default=1, help='downsample rate in y-axis')
+parser.add_argument('--radius', type=float, default=0.2, help='for construct geometry')
 
 ## task
 parser.add_argument('--task', type=str, default='steady',
@@ -79,6 +81,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 def main():
     if args.task == 'steady':
         exp = Exp_Steady(args)
+    elif args.task == 'steady_design':
+        exp = Exp_Steady_Design(args)
     elif args.task == 'dynamic_autoregressive':
         exp = Exp_Dynamic_Autoregressive(args)
     elif args.task == 'dynamic_conditional':

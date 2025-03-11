@@ -439,7 +439,7 @@ class Model(nn.Module):
         fx = self.fc2(fx)
         return fx
 
-    def forward(self, x, fx, T=None):
+    def forward(self, x, fx, T=None, geo=None):
         if self.args.geotype == 'structured_2D':
             return self.structured_geo(x, fx, T)
         else:

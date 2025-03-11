@@ -50,6 +50,7 @@ class Model(nn.Module):
         else:
             patch_size = [(size + (16 - size % 16) % 16) // 16 for size in args.shapelist]
             self.padding = [(16 - size % 16) % 16 for size in args.shapelist]
+
         # multiscale modules
         self.inc = ConvList[len(patch_size)](args.n_hidden, args.n_hidden, normtype=normtype)
         self.down1 = DownList[len(patch_size)](args.n_hidden, args.n_hidden * 2, normtype=normtype)
@@ -200,7 +201,7 @@ class Model(nn.Module):
         x = self.fc2(x)
         return x
 
-    def forward(self, x, fx, T=None):
+    def forward(self, x, fx, T=None, geo=None):
         if self.args.geotype == 'unstructured':
             return self.unstructured_geo(x, fx, T)
         else:

@@ -5,7 +5,8 @@ import numpy as np
 import torch
 import h5py
 import scipy.io as scio
-
+from data_provider.shapenet_utils import get_datalist
+from data_provider.shapenet_utils import GraphDataset
 from torch.utils.data import Dataset
 from utils.normalizer import UnitTransformer
 
@@ -420,10 +421,12 @@ class pdebench_autoregressive(object):
         self.out_dim = args.out_dim
 
     def get_loader(self):
-        train_dataset = pdebench_dataset_autoregressive(file_path=self.file_path, train_ratio=self.train_ratio, test=False,
-                                         T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
-        test_dataset = pdebench_dataset_autoregressive(file_path=self.file_path, train_ratio=self.train_ratio, test=True,
-                                        T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
+        train_dataset = pdebench_dataset_autoregressive(file_path=self.file_path, train_ratio=self.train_ratio,
+                                                        test=False,
+                                                        T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
+        test_dataset = pdebench_dataset_autoregressive(file_path=self.file_path, train_ratio=self.train_ratio,
+                                                       test=True,
+                                                       T_in=self.T_in, T_out=self.T_out, out_dim=self.out_dim)
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batch_size, shuffle=True)
 
@@ -517,17 +520,68 @@ class pdebench_steady_darcy(object):
             grid = torch.stack((X, Y), axis=-1)[None, ::r1, ::r2, :][:, :s1, :s2, :]
 
         grid = grid.repeat(data_nu.shape[0], 1, 1, 1)
-        
+
         pos_train = grid[:self.ntrain, :, :, :].reshape(self.ntrain, -1, 2)
         x_train = data_nu[:self.ntrain, :, :].reshape(self.ntrain, -1, 1)
-        y_train = data_solution[:self.ntrain, 0, :, :].reshape(self.ntrain, -1, 1) # solutions only have 1 channel
-        
-        pos_test = grid[self.ntrain:, :, :, :].reshape(data_nu.shape[0]-self.ntrain, -1, 2)
-        x_test = data_nu[self.ntrain:, :, :].reshape(data_nu.shape[0]-self.ntrain, -1, 1)
-        y_test = data_solution[self.ntrain:, 0, :, :].reshape(data_nu.shape[0]-self.ntrain, -1, 1) # solutions only have 1 channel
-        
+        y_train = data_solution[:self.ntrain, 0, :, :].reshape(self.ntrain, -1, 1)  # solutions only have 1 channel
+
+        pos_test = grid[self.ntrain:, :, :, :].reshape(data_nu.shape[0] - self.ntrain, -1, 2)
+        x_test = data_nu[self.ntrain:, :, :].reshape(data_nu.shape[0] - self.ntrain, -1, 1)
+        y_test = data_solution[self.ntrain:, 0, :, :].reshape(data_nu.shape[0] - self.ntrain, -1,
+                                                              1)  # solutions only have 1 channel
+
         train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_train, x_train, y_train),
                                                    batch_size=self.batch_size, shuffle=True)
         test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(pos_test, x_test, y_test),
                                                   batch_size=self.batch_size, shuffle=False)
         return train_loader, test_loader, [s1, s2]
+
+
+class car_design(object):
+    def __init__(self, args):
+        self.file_path = args.data_path
+        self.radius = args.radius
+        self.test_fold_id = 0
+
+    def get_samples(self, obj_path):
+        folds = [f'param{i}' for i in range(9)] 
+        samples = []
+        for fold in folds:
+            fold_samples = []
+            files = os.listdir(os.path.join(obj_path, fold))
+            for file in files:
+                path = os.path.join(obj_path, os.path.join(fold, file))
+                if os.path.isdir(path):
+                    fold_samples.append(os.path.join(fold, file))
+            samples.append(fold_samples)
+        return samples  # 100 + 99 + 97 + 100 + 100 + 96 + 100 + 98 + 99 = 889 samples
+
+    def load_train_val_fold(self):
+        samples = self.get_samples(os.path.join(self.file_path, 'training_data'))
+        trainlst = []
+        for i in range(len(samples)):
+            if i == self.test_fold_id:
+                continue
+            trainlst += samples[i]
+        vallst = samples[self.test_fold_id] if 0 <= self.test_fold_id < len(samples) else None
+
+        if os.path.exists(os.path.join(self.file_path, 'preprocessed_data')):
+            print("use preprocessed data")
+            preprocessed = True
+        else:
+            preprocessed = False
+        print("loading data")
+        train_dataset, coef_norm = get_datalist(self.file_path, trainlst, norm=True,
+                                                savedir=os.path.join(self.file_path, 'preprocessed_data'),
+                                                preprocessed=preprocessed)
+        val_dataset = get_datalist(self.file_path, vallst, coef_norm=coef_norm,
+                                   savedir=os.path.join(self.file_path, 'preprocessed_data'),
+                                   preprocessed=preprocessed)
+        print("load data finish")
+        return train_dataset, val_dataset, coef_norm, vallst
+
+    def get_loader(self):
+        train_data, val_data, coef_norm, vallst = self.load_train_val_fold()
+        train_loader = GraphDataset(train_data, use_cfd_mesh=False, r=self.radius, coef_norm=coef_norm)
+        test_loader = GraphDataset(val_data, use_cfd_mesh=False, r=self.radius, coef_norm=coef_norm, valid_list=vallst)
+        return train_loader, test_loader, [train_data[0].x.shape[0]]

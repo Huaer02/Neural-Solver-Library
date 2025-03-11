@@ -121,7 +121,7 @@ class Model(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward(self, x, fx, T=None):
+    def forward(self, x, fx, T=None, geo=None):
         pos = x
         if self.args.unified_pos:
             x = self.pos.repeat(x.shape[0], 1, 1)

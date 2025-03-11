@@ -133,7 +133,7 @@ class Model(nn.Module):
             fx = block(fx)
         return fx
 
-    def forward(self, x, fx, T=None):
+    def forward(self, x, fx, T=None, geo=None):
         if self.args.geotype == 'unstructured':
             return self.unstructured_geo(x, fx, T)
         else:
