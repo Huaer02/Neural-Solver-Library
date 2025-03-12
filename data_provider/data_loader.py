@@ -198,19 +198,10 @@ class pipe(object):
             self.x_normalizer.cuda()
             self.y_normalizer.cuda()
 
-        x = np.linspace(0, 1, s2)
-        y = np.linspace(0, 1, s1)
-        x, y = np.meshgrid(x, y)
-        pos = np.c_[x.ravel(), y.ravel()]
-        pos = torch.tensor(pos, dtype=torch.float).unsqueeze(0)
-
-        pos_train = pos.repeat(self.ntrain, 1, 1)
-        pos_test = pos.repeat(self.ntest, 1, 1)
-
-        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_train, pos_train, y_train),
+        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_train, x_train, y_train),
                                                    batch_size=self.batch_size,
                                                    shuffle=True)
-        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_test, pos_test, y_test),
+        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_test, x_test, y_test),
                                                   batch_size=self.batch_size,
                                                   shuffle=False)
         print("Dataloading is over.")
@@ -265,19 +256,10 @@ class airfoil(object):
             self.x_normalizer.cuda()
             self.y_normalizer.cuda()
 
-        x = np.linspace(0, 1, s2)
-        y = np.linspace(0, 1, s1)
-        x, y = np.meshgrid(x, y)
-        pos = np.c_[x.ravel(), y.ravel()]
-        pos = torch.tensor(pos, dtype=torch.float).unsqueeze(0)
-
-        pos_train = pos.repeat(self.ntrain, 1, 1)
-        pos_test = pos.repeat(self.ntest, 1, 1)
-
-        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_train, pos_train, y_train),
+        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_train, x_train, y_train),
                                                    batch_size=self.batch_size,
                                                    shuffle=True)
-        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_test, pos_test, y_test),
+        test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_test, x_test, y_test),
                                                   batch_size=self.batch_size,
                                                   shuffle=False)
         print("Dataloading is over.")
