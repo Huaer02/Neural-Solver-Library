@@ -1,4 +1,4 @@
-# <img src=".\pic\logo.png" alt="Logo" width="70" style="vertical-align: middle;">Neural-Solver-Library (NeuralSolver)
+# <img src=".\pic\logo.png" alt="Logo" width="50" style="vertical-align: middle;">Neural-Solver-Library (NeuralSolver)
 
 NeuralSolver is an open-source library for deep learning researchers, especially for neural PDE solvers.
 
@@ -6,7 +6,7 @@ NeuralSolver is an open-source library for deep learning researchers, especially
 
 ## Features
 
-This library current supports the following benchmarks:
+This library currently supports the following benchmarks:
 
 - Six Standard Benchmarks from [[FNO]](https://arxiv.org/abs/2010.08895) and [[geo-FNO]](https://arxiv.org/abs/2207.05209)
 - PDEBench [[NeurIPS 2022 Track Datasets and Benchmarks]](https://arxiv.org/abs/2210.07182) for benchmarking autoregressive tasks
@@ -40,7 +40,7 @@ Some vision backbones can be good baselines for tasks in structured geometries:
 - [x] **Swin Transformer** - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows [[ICCV 2021]](https://arxiv.org/abs/2103.14030)
 - [x] **U-Net** - U-Net: Convolutional Networks for Biomedical Image Segmentation [[MICCAI 2015]](https://arxiv.org/pdf/1505.04597)
 
-Some classical geometric deep  models are also included for design task:
+Some classical geometric deep  models are also included for design tasks:
 
 - [x] **Graph-UNet** - Graph U-Nets [[ICML 2019]](https://arxiv.org/pdf/1905.05178)
 - [x] **GraphSAGE** - Inductive Representation Learning on Large Graphs [[NeurIPS 2017]](https://arxiv.org/pdf/1706.02216)
@@ -83,7 +83,7 @@ If you find this repo useful, please cite our paper.
 
 ## Contact
 
-If you have any questions or want to use the code, please contact [wuhx23@mails.tsinghua.edu.cn](mailto:wuhx23@mails.tsinghua.edu.cn) or describe it in Issues.
+If you have any questions or want to use the code, please contact our team or describe it in Issues.
 
 Current maintenance team:
 
@@ -94,7 +94,7 @@ Current maintenance team:
 
 ## Acknowledgement
 
-We appreciate the following github repos a lot for their valuable code base or datasets:
+We appreciate the following GitHub repos a lot for their valuable code base or datasets:
 
 https://github.com/thuml/Transolver
 
