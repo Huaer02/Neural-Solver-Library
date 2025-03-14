@@ -132,5 +132,5 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
     args = timesteps[:, None].float() * freqs[None]
     embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
     if dim % 2:
-        embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
+        embedding = torch.cat([embedding, torch.zeros_like(embedding[:,:,:1])], dim=-1)
     return embedding

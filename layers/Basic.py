@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from timm.models.layers import trunc_normal_
 from einops import rearrange, repeat
@@ -85,6 +86,48 @@ class Attention(nn.Module):
         res = rearrange(res, 'b h n d -> b n (h d)')
         return self.to_out(res)
 
+class FlashAttention(nn.Module):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0., **kwargs):
+        super().__init__()
+        inner_dim = dim_head * heads
+        self.dim_head = dim_head
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+        self.dropout = nn.Dropout(dropout)
+        
+        # Separate projection layers for query, key, and value
+        self.to_q = nn.Linear(dim, inner_dim, bias=False)
+        self.to_k = nn.Linear(dim, inner_dim, bias=False)
+        self.to_v = nn.Linear(dim, inner_dim, bias=False)
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x):
+        # x shape: [batch_size, seq_len, dim]
+        batch_size, seq_len, _ = x.shape
+        
+        # Get query, key, value projections for all heads
+        q = self.to_q(x)
+        k = self.to_k(x)
+        v = self.to_v(x)
+        
+        # Reshape for multi-head attention
+        q = rearrange(q, 'b n (h d) -> b h n d', h=self.heads)
+        k = rearrange(k, 'b n (h d) -> b h n d', h=self.heads)
+        v = rearrange(v, 'b n (h d) -> b h n d', h=self.heads)
+        
+        # Flash attention implementation
+        # Scale query
+        q = q * self.scale
+
+        attn_output = F.scaled_dot_product_attention(
+            q, k, v,
+            dropout_p=self.dropout.p if self.training else 0.0,
+        )
+        out = rearrange(attn_output, 'b h n d -> b n (h d)')
+        return self.to_out(out)
 
 class Vanilla_Linear_Attention(nn.Module):
     def __init__(self, dim, heads=8, dim_head=64, dropout=0., **kwargs):

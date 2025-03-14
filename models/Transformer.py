@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from timm.models.layers import trunc_normal_
-from layers.Basic import MLP, Attention
+from layers.Basic import MLP, FlashAttention
 from layers.Embedding import timestep_embedding, unified_pos_embedding
 from einops import rearrange, repeat
 
@@ -25,7 +25,8 @@ class Transformer_block(nn.Module):
         self.last_layer = last_layer
         self.ln_1 = nn.LayerNorm(hidden_dim)
 
-        self.Attn = Attention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout)
+        # flash_attention
+        self.Attn = FlashAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout)
         self.ln_2 = nn.LayerNorm(hidden_dim)
         self.mlp = MLP(hidden_dim, hidden_dim * mlp_ratio, hidden_dim, n_layers=0, res=False, act=act)
         if self.last_layer:

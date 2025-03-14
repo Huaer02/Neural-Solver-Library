@@ -183,7 +183,9 @@ class Model(nn.Module):
         self.__name__ = 'Factformer'
         self.args = args
         ## embedding
-        if args.unified_pos and args.geotype != 'unstructured':  # only for structured mesh
+        if args.geotype == 'unstructured':
+            raise ValueError('Factformer does not support unstructured geometry, please try to integrate GeoFNO layer')
+        if args.unified_pos:  # only for structured mesh
             self.pos = unified_pos_embedding(args.shapelist, args.ref)
             self.preprocess = MLP(args.fun_dim + args.ref ** len(args.shapelist), args.n_hidden * 2,
                                   args.n_hidden, n_layers=0, res=False, act=args.act)
