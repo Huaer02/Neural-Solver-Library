@@ -1,16 +1,26 @@
-# Neural-Solver-Library (NeuralSolver)
+# <img src=".\pic\logo.png" alt="Logo" width="70" style="vertical-align: middle;">Neural-Solver-Library (NeuralSolver)
 
 NeuralSolver is an open-source library for deep learning researchers, especially for neural PDE solvers.
+
+:triangular_flag_on_post:**News** (2025.03) We release the NeuralSolver as a simple and neat code base for benchmarking neural PDE solvers, which is extended from our previous GitHub repository [Transolver](https://github.com/thuml/Transolver).
 
 ## Features
 
 This library current supports the following benchmarks:
 
-- Standard Benchmarks from [[FNO]](https://arxiv.org/abs/2010.08895) and [[geo-FNO]](https://arxiv.org/abs/2207.05209)
+- Six Standard Benchmarks from [[FNO]](https://arxiv.org/abs/2010.08895) and [[geo-FNO]](https://arxiv.org/abs/2207.05209)
 - PDEBench [[NeurIPS 2022 Track Datasets and Benchmarks]](https://arxiv.org/abs/2210.07182) for benchmarking autoregressive tasks
 - ShapeNet-Car from [[TOG 2018]](https://dl.acm.org/doi/abs/10.1145/3197517.3201325) for benchmarking industrial design tasks
 
-Here is the model list of neural PDE solvers:
+<p align="center">
+<img src=".\pic\task.png" height = "200" alt="" align=center />
+<br><br>
+<b>Figure 1.</b> Examples of supported PDE-solving tasks.
+</p>
+
+## Supported Neural Solvers
+
+Here is the list of supported neural PDE solvers:
 
 - [x] **Transolver** - Transolver: A Fast Transformer Solver for PDEs on General Geometries [[ICML 2024]](https://arxiv.org/abs/2402.02366)
 - [x] **ONO** - Improved Operator Learning by Orthogonal Attention [[ICML 2024]](https://arxiv.org/abs/2310.12487v3)
@@ -30,11 +40,11 @@ Some vision backbones can be good baselines for tasks in structured geometries:
 - [x] **Swin Transformer** - Swin Transformer: Hierarchical Vision Transformer using Shifted Windows [[ICCV 2021]](https://arxiv.org/abs/2103.14030)
 - [x] **U-Net** - U-Net: Convolutional Networks for Biomedical Image Segmentation [[MICCAI 2015]](https://arxiv.org/pdf/1505.04597)
 
-Besides, some classical geometric deep learning models are also included for design task with irregular geometries:
+Some classical geometric deep  models are also included for design task:
 
-- [x] **PointNet** - PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation [[CVPR 2017]](https://arxiv.org/pdf/1612.00593)
-- [x] **GraphSAGE** - Inductive Representation Learning on Large Graphs [[NeurIPS 2017]](https://arxiv.org/pdf/1706.02216)
 - [x] **Graph-UNet** - Graph U-Nets [[ICML 2019]](https://arxiv.org/pdf/1905.05178)
+- [x] **GraphSAGE** - Inductive Representation Learning on Large Graphs [[NeurIPS 2017]](https://arxiv.org/pdf/1706.02216)
+- [x] **PointNet** - PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation [[CVPR 2017]](https://arxiv.org/pdf/1612.00593)
 
 
 ## Usage
@@ -73,7 +83,14 @@ If you find this repo useful, please cite our paper.
 
 ## Contact
 
-If you have any questions or want to use the code, please contact [wuhx23@mails.tsinghua.edu.cn](mailto:wuhx23@mails.tsinghua.edu.cn).
+If you have any questions or want to use the code, please contact [wuhx23@mails.tsinghua.edu.cn](mailto:wuhx23@mails.tsinghua.edu.cn) or describe it in Issues.
+
+Current maintenance team:
+
+- Haixu Wu (Ph.D. student, [wuhx23@mails.tsinghua.edu.cn](mailto:wuhx23@mails.tsinghua.edu.cn))
+- Yuanxu Sun (Undergraduate, sunyuanx22@mails.tsinghua.edu.cn)
+- Hang Zhou (Master student, zhou-h23@mails.tsinghua.edu.cn)
+- Yuezhou Ma (Ph.D. student, mayz24@mails.tsinghua.edu.cn)
 
 ## Acknowledgement
 
