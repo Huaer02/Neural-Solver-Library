@@ -67,7 +67,7 @@ class ONOBlock(nn.Module):
             mlp_ratio=4,
             last_layer=False,
             momentum=0.9,
-            psi_dim=64,
+            psi_dim=8,
             out_dim=1
     ):
         super().__init__()
@@ -77,8 +77,12 @@ class ONOBlock(nn.Module):
         self.register_buffer("feature_cov", None)
         self.register_parameter("mu", nn.Parameter(torch.zeros(psi_dim)))
         self.ln_1 = nn.LayerNorm(hidden_dim)
-        self.Attn = LinearAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout,
-                                    attn_type=attn_type)
+        if attn_type == 'nystrom':
+            from nystrom_attention import NystromAttention
+            self.Attn = NystromAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout)
+        else:
+            self.Attn = LinearAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout,
+                                        attn_type=attn_type)
         self.ln_2 = nn.LayerNorm(hidden_dim)
         self.mlp = MLP(hidden_dim, hidden_dim * mlp_ratio, hidden_dim, n_layers=0, res=False, act=act)
         self.proj = nn.Linear(hidden_dim, psi_dim)
@@ -111,7 +115,7 @@ class ONOBlock(nn.Module):
 
 class Model(nn.Module):
     ## speed up with flash attention
-    def __init__(self, args):
+    def __init__(self, args, psi_dim=8, attn_type='nystrom'):
         super(Model, self).__init__()
         self.__name__ = 'ONO'
         self.args = args
@@ -137,6 +141,8 @@ class Model(nn.Module):
                                               act=args.act,
                                               mlp_ratio=args.mlp_ratio,
                                               out_dim=args.out_dim,
+                                              psi_dim=psi_dim,
+                                              attn_type=attn_type,
                                               last_layer=(_ == args.n_layers - 1))
                                      for _ in range(args.n_layers)])
         self.placeholder = nn.Parameter((1 / (args.n_hidden)) * torch.rand(args.n_hidden, dtype=torch.float))

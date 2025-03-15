@@ -2,12 +2,7 @@ import os
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 from tqdm import *
-from exp.exp_steady import Exp_Steady
-from exp.exp_steady_design import Exp_Steady_Design
-from exp.exp_dynamic_conditional import Exp_Dynamic_Conditional
-from exp.exp_dynamic_autoregressive import Exp_Dynamic_Autoregressive
 
 parser = argparse.ArgumentParser('Training Neural PDE Solvers')
 
@@ -80,12 +75,16 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
 def main():
     if args.task == 'steady':
+        from exp.exp_steady import Exp_Steady
         exp = Exp_Steady(args)
     elif args.task == 'steady_design':
+        from exp.exp_steady_design import Exp_Steady_Design
         exp = Exp_Steady_Design(args)
     elif args.task == 'dynamic_autoregressive':
+        from exp.exp_dynamic_conditional import Exp_Dynamic_Conditional
         exp = Exp_Dynamic_Autoregressive(args)
     elif args.task == 'dynamic_conditional':
+        from exp.exp_dynamic_autoregressive import Exp_Dynamic_Autoregressive
         exp = Exp_Dynamic_Conditional(args)
     else:
         raise NotImplementedError
