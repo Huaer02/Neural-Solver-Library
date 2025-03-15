@@ -59,14 +59,14 @@ pip install -r requirements.txt
 3. Train and evaluate model. We provide the experiment scripts for all benchmarks under the folder `./scripts/`. You can reproduce the experiment results as the following examples:
 
 ```bash
-bash ./scripts/Transolver_airfoil.sh
+bash ./scripts/StandardBench/airfoil/Transolver.sh
 ```
 
 4. Develop your own model.
 
 - Add the model file to the folder `./models`. You can follow the `./models/Transolver.py`.
 - Include the newly added model in the `model_dict` of `./models/model_factory.py`.
-- Create the corresponding scripts under the folder `./scripts`.
+- Create the corresponding scripts under the folder `./scripts`, where you can set hyperparameters following the provided scripts of other models.
 
 ## Citation
 
