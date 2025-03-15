@@ -9,7 +9,7 @@ python run.py \
 --space_dim 2 \
 --fun_dim 0 \
 --out_dim 1 \
---model LSM \
+--model U_NO \
 --n_hidden 32 \
 --n_heads 8 \
 --n_layers 8 \
@@ -20,4 +20,4 @@ python run.py \
 --epochs 500 \
 --vis_bound 40 180 0 35 \
 --eval 0 \
---save_name airfoil_LSM_AdamW
+--save_name airfoil_U_NO_AdamW

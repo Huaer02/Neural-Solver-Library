@@ -20,4 +20,4 @@ python run.py \
 --batch-size 20 \
 --epochs 500 \
 --eval 0 \
---save_name ns_LSM_wo_teacher_forcing_wo_unipos_real_steplr
+--save_name ns_FNO_wo_teacher_forcing_wo_unipos_real_steplr

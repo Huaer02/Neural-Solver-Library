@@ -1,0 +1,23 @@
+python run.py \
+--gpu 5 \
+--data_path /data/fno \
+--loader ns \
+--geotype structured_2D \
+--scheduler CosineAnnealingLR \
+--task dynamic_autoregressive \
+--space_dim 2 \
+--fun_dim 10 \
+--out_dim 1 \
+--model F_FNO \
+--n_hidden 64 \
+--n_heads 8 \
+--n_layers 8 \
+--mlp_ratio 2 \
+--slice_num 32 \
+--unified_pos 1 \
+--ref 8 \
+--batch-size 2 \
+--epochs 500 \
+--eval 0 \
+--max_grad_norm 0.1 \
+--save_name ns_F_FNO

@@ -1,12 +1,12 @@
 python run.py \
---gpu 1 \
+--gpu 5 \
 --data_path /data/fno/airfoil/naca \
 --loader airfoil \
 --geotype structured_2D \
 --space_dim 2 \
 --fun_dim 0 \
 --out_dim 1 \
---model Transformer \
+--model GNOT \
 --n_hidden 128 \
 --n_heads 8 \
 --n_layers 8 \
@@ -17,4 +17,4 @@ python run.py \
 --epochs 500 \
 --vis_bound 40 180 0 35 \
 --eval 0 \
---save_name airfoil_Transformer
+--save_name airfoil_GNOT

@@ -1,23 +1,23 @@
 python run.py \
---gpu 4 \
---data_path /data/fno/airfoil/naca \
---loader airfoil \
+--gpu 6 \
+--data_path /data/fno/ \
+--loader ns \
 --geotype structured_2D \
---lr 0.001 \
+--task dynamic_autoregressive \
+--teacher_forcing 0 \
+--lr 0.0005 \
 --weight_decay 1e-4 \
 --scheduler StepLR \
 --space_dim 2 \
---fun_dim 0 \
+--fun_dim 10 \
 --out_dim 1 \
---model U_NO \
---n_hidden 32 \
+--model U_FNO \
+--n_hidden 64 \
 --n_heads 8 \
 --n_layers 8 \
---slice_num 64 \
 --unified_pos 0 \
 --ref 8 \
 --batch-size 20 \
 --epochs 500 \
---vis_bound 40 180 0 35 \
 --eval 0 \
---save_name airfoil_UNO
+--save_name ns_U_FNO

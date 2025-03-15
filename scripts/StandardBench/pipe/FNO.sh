@@ -1,20 +1,20 @@
 python run.py \
---gpu 5 \
---data_path /data/fno/airfoil/naca \
---loader airfoil \
+--gpu 4 \
+--data_path /data/fno/pipe \
+--loader pipe \
 --geotype structured_2D \
 --space_dim 2 \
---fun_dim 0 \
+--fun_dim 2 \
 --out_dim 1 \
---model Galerkin_Transformer \
+--model FNO \
 --n_hidden 128 \
 --n_heads 8 \
 --n_layers 8 \
+--mlp_ratio 2 \
 --slice_num 64 \
 --unified_pos 0 \
 --ref 8 \
 --batch-size 4 \
 --epochs 500 \
---vis_bound 40 180 0 35 \
 --eval 0 \
---save_name Galerkin_Transformer
+--save_name pipe_FNO

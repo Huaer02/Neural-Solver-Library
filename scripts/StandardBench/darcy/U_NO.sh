@@ -1,14 +1,17 @@
 python run.py \
---gpu 6 \
+--gpu 3 \
 --data_path /data/fno/ \
---loader ns \
+--loader darcy \
 --geotype structured_2D \
---task dynamic_autoregressive \
---teacher_forcing 0 \
+--task steady \
+--normalize 1 \
+--derivloss 1 \
+--downsamplex 5 \
+--downsampley 5 \
 --space_dim 2 \
---fun_dim 10 \
+--fun_dim 1 \
 --out_dim 1 \
---model LSM \
+--model U_NO \
 --n_hidden 32 \
 --n_heads 8 \
 --n_layers 8 \
@@ -18,4 +21,4 @@ python run.py \
 --batch-size 4 \
 --epochs 500 \
 --eval 0 \
---save_name ns_LSM_wo_teacher_forcing
+--save_name darcy_U_NO
