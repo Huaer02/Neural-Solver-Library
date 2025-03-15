@@ -169,6 +169,8 @@ class Model(nn.Module):
                 ))
 
     def forward(self, x, fx, T=None, geo=None):
+        if geo is None:
+            raise ValueError('Please provide edge index for Graph Neural Networks')
         x, edge_index = fx.squeeze(0), geo
         id = []
         edge_index_list = [edge_index.clone()]

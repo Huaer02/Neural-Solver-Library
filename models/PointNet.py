@@ -25,6 +25,8 @@ class Model(nn.Module):
         self.fcfinal = nn.Linear(args.n_hidden * 4, args.n_hidden)
 
     def forward(self, x, fx, T=None, geo=None):
+        if geo is None:
+            raise ValueError('Please provide edge index for Graph Neural Networks')
         z, batch = torch.cat((x, fx), dim=-1).float().squeeze(0), torch.zeros([x.shape[1]]).cuda().long()
 
         z = self.encoder(z)

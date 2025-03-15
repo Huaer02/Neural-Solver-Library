@@ -81,10 +81,10 @@ def main():
         from exp.exp_steady_design import Exp_Steady_Design
         exp = Exp_Steady_Design(args)
     elif args.task == 'dynamic_autoregressive':
-        from exp.exp_dynamic_conditional import Exp_Dynamic_Conditional
+        from exp.exp_dynamic_autoregressive import Exp_Dynamic_Autoregressive
         exp = Exp_Dynamic_Autoregressive(args)
     elif args.task == 'dynamic_conditional':
-        from exp.exp_dynamic_autoregressive import Exp_Dynamic_Autoregressive
+        from exp.exp_dynamic_conditional import Exp_Dynamic_Conditional
         exp = Exp_Dynamic_Conditional(args)
     else:
         raise NotImplementedError
