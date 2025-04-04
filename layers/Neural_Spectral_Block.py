@@ -27,8 +27,8 @@ class NeuralSpectralBlock1D(nn.Module):
         self.num_token = num_token
         self.latent = nn.Parameter(
             (1 / (width)) * torch.rand(self.head, self.num_token, width // self.head, dtype=torch.float))
-        self.encoder_attn = nn.Conv2d(self.width, self.width * 2, kernel_size=1, stride=1)
-        self.decoder_attn = nn.Conv2d(self.width, self.width, kernel_size=1, stride=1)
+        self.encoder_attn = nn.Conv1d(self.width, self.width * 2, kernel_size=1, stride=1)
+        self.decoder_attn = nn.Conv1d(self.width, self.width, kernel_size=1, stride=1)
         self.softmax = nn.Softmax(dim=-1)
 
     def self_attn(self, q, k, v):

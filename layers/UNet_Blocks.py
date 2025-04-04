@@ -69,7 +69,7 @@ class Up1D(nn.Module):
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True)
+            self.up = nn.Upsample(scale_factor=2, mode='linear', align_corners=True)
             self.conv = DoubleConv1D(in_channels, out_channels, in_channels // 2, normtype=normtype)
         else:
             self.up = nn.ConvTranspose1d(in_channels, in_channels // 2, kernel_size=2, stride=2)

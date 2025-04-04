@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from timm.models.layers import trunc_normal_
-from layers.Basic import MLP, LinearAttention
+from layers.Basic import MLP, LinearAttention, FlashAttention, SelfAttention as LinearSelfAttention
 from layers.Embedding import timestep_embedding, unified_pos_embedding
 from einops import rearrange, repeat
 import warnings
@@ -63,7 +63,7 @@ class ONOBlock(nn.Module):
             hidden_dim: int,
             dropout: float,
             act='gelu',
-            attn_type='l2',
+            attn_type='nystrom',
             mlp_ratio=4,
             last_layer=False,
             momentum=0.9,
@@ -80,9 +80,13 @@ class ONOBlock(nn.Module):
         if attn_type == 'nystrom':
             from nystrom_attention import NystromAttention
             self.Attn = NystromAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout)
-        else:
+        elif attn_type == 'linear':
             self.Attn = LinearAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout,
-                                        attn_type=attn_type)
+                                        attn_type='galerkin')
+        elif attn_type == 'selfAttention':
+            self.Attn = LinearSelfAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads, dropout=dropout)
+        else:
+            raise ValueError('Attn type only supports nystrom or linear')
         self.ln_2 = nn.LayerNorm(hidden_dim)
         self.mlp = MLP(hidden_dim, hidden_dim * mlp_ratio, hidden_dim, n_layers=0, res=False, act=act)
         self.proj = nn.Linear(hidden_dim, psi_dim)
@@ -115,7 +119,7 @@ class ONOBlock(nn.Module):
 
 class Model(nn.Module):
     ## speed up with flash attention
-    def __init__(self, args, psi_dim=8, attn_type='nystrom'):
+    def __init__(self, args):
         super(Model, self).__init__()
         self.__name__ = 'ONO'
         self.args = args
@@ -127,7 +131,7 @@ class Model(nn.Module):
             self.preprocess_z = MLP(args.fun_dim + args.ref ** len(args.shapelist), args.n_hidden * 2,
                                     args.n_hidden, n_layers=0, res=False, act=args.act)
         else:
-            self.preprocess_x = MLP(args.space_dim, args.n_hidden * 2, args.n_hidden,
+            self.preprocess_x = MLP(args.fun_dim + args.space_dim, args.n_hidden * 2, args.n_hidden,
                                     n_layers=0, res=False, act=args.act)
             self.preprocess_z = MLP(args.fun_dim + args.space_dim, args.n_hidden * 2, args.n_hidden,
                                     n_layers=0, res=False, act=args.act)
@@ -141,8 +145,8 @@ class Model(nn.Module):
                                               act=args.act,
                                               mlp_ratio=args.mlp_ratio,
                                               out_dim=args.out_dim,
-                                              psi_dim=psi_dim,
-                                              attn_type=attn_type,
+                                              psi_dim=args.psi_dim,
+                                              attn_type=args.attn_type,
                                               last_layer=(_ == args.n_layers - 1))
                                      for _ in range(args.n_layers)])
         self.placeholder = nn.Parameter((1 / (args.n_hidden)) * torch.rand(args.n_hidden, dtype=torch.float))
@@ -164,11 +168,12 @@ class Model(nn.Module):
         if self.args.unified_pos:
             x = self.pos.repeat(x.shape[0], 1, 1)
         if fx is not None:
-            fx = torch.cat((x, fx), -1)
-            fx = self.preprocess_z(fx)
+            x = torch.cat((x, fx), -1)
+            fx = self.preprocess_z(x)
+            x = self.preprocess_x(x)
         else:
             fx = self.preprocess_z(x)
-        x = self.preprocess_x(x)
+            x = self.preprocess_x(x)
         fx = fx + self.placeholder[None, None, :]
 
         if T is not None:

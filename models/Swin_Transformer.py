@@ -364,7 +364,7 @@ class Model(nn.Module):
         self.__name__ = 'SwinTransformer'
         self.args = args
         ## embedding
-        if args.geotype == 'unstructured':
+        if args.geotype != 'structured_2D' :
             raise ValueError('Swin Transformer only supports Structured 2D geometry')
         
         if args.unified_pos:  # only for structured mesh

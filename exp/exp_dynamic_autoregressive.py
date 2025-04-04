@@ -36,7 +36,12 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         return test_loss_full
 
     def train(self):
-        optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
+        if self.args.optimizer == 'AdamW':
+            optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
+        elif self.args.optimizer == 'Adam':
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay)
+        else: 
+            raise ValueError('Optimizer only AdamW or Adam')
         if self.args.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.args.lr, epochs=self.args.epochs,
                                                             steps_per_epoch=len(self.train_loader),
