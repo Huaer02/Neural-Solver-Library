@@ -1,5 +1,5 @@
 from data_provider.data_loader import airfoil, ns, darcy, pipe, elas, plas, pdebench_autoregressive, \
-    pdebench_steady_darcy, car_design
+    pdebench_steady_darcy, car_design, cfd3d
 
 
 def get_data(args):
@@ -13,6 +13,7 @@ def get_data(args):
         'darcy': darcy,
         'ns': ns,
         'plas': plas,
+        'cfd3d': cfd3d,
     }
     dataset = data_dict[args.loader](args)
     train_loader, test_loader, shapelist = dataset.get_loader()

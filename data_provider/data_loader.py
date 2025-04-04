@@ -8,7 +8,7 @@ import scipy.io as scio
 from data_provider.shapenet_utils import get_datalist
 from data_provider.shapenet_utils import GraphDataset
 from torch.utils.data import Dataset
-from utils.normalizer import UnitTransformer
+from utils.normalizer import UnitTransformer, UnitGaussianNormalizer
 
 
 class plas(object):
@@ -22,6 +22,11 @@ class plas(object):
         self.out_dim = args.out_dim
         self.T_out = args.T_out
         self.normalize = args.normalize
+        self.norm_type = args.norm_type
+        
+        # Validate norm_type
+        if self.norm_type not in ["UnitTransformer", "UnitGaussianNormalizer"]:
+            raise ValueError(f"Unsupported norm_type: {self.norm_type}. Must be 'UnitTransformer' or 'UnitGaussianNormalizer'.")
 
     def random_collate_fn(self, batch):
         shuffled_batch = []
@@ -77,14 +82,24 @@ class plas(object):
         y_test = output[-self.ntest:, ::r1, ::r2][:, :s1, :s2]
         y_test = y_test.reshape(self.ntest, -1, self.T_out * self.out_dim)
         print(x_train.shape, y_train.shape)
-
-        x_normalizer = UnitTransformer(x_train)
+        
+        # Use appropriate normalizer based on norm_type
+        if self.norm_type == 'UnitTransformer':
+            x_normalizer = UnitTransformer(x_train)
+        elif self.norm_type == 'UnitGaussianNormalizer':
+            x_normalizer = UnitGaussianNormalizer(x_train)
+        
         x_train = x_normalizer.encode(x_train)
         x_test = x_normalizer.encode(x_test)
         x_normalizer.cuda()
 
         if self.normalize:
-            self.y_normalizer = UnitTransformer(y_train)
+            # Use appropriate normalizer based on norm_type
+            if self.norm_type == 'UnitTransformer':
+                self.y_normalizer = UnitTransformer(y_train)
+            elif self.norm_type == 'UnitGaussianNormalizer':
+                self.y_normalizer = UnitGaussianNormalizer(y_train)
+                
             y_train = self.y_normalizer.encode(y_train)
             self.y_normalizer.cuda()
 
@@ -121,6 +136,11 @@ class elas(object):
         self.ntrain = args.ntrain
         self.ntest = args.ntest
         self.normalize = args.normalize
+        self.norm_type = args.norm_type
+        
+        # Validate norm_type
+        if self.norm_type not in ["UnitTransformer", "UnitGaussianNormalizer"]:
+            raise ValueError(f"Unsupported norm_type: {self.norm_type}. Must be 'UnitTransformer' or 'UnitGaussianNormalizer'.")
 
     def get_loader(self):
         input_s = np.load(self.PATH_Sigma)
@@ -136,7 +156,12 @@ class elas(object):
         print(input_s.shape, input_xy.shape)
 
         if self.normalize:
-            self.y_normalizer = UnitTransformer(train_s)
+            # Use appropriate normalizer based on norm_type
+            if self.norm_type == 'UnitTransformer':
+                self.y_normalizer = UnitTransformer(train_s)
+            elif self.norm_type == 'UnitGaussianNormalizer':
+                self.y_normalizer = UnitGaussianNormalizer(train_s)
+                
             train_s = self.y_normalizer.encode(train_s)
             self.y_normalizer.cuda()
 
@@ -161,6 +186,11 @@ class pipe(object):
         self.ntrain = args.ntrain
         self.ntest = args.ntest
         self.normalize = args.normalize
+        self.norm_type = args.norm_type
+        
+        # Validate norm_type
+        if self.norm_type not in ["UnitTransformer", "UnitGaussianNormalizer"]:
+            raise ValueError(f"Unsupported norm_type: {self.norm_type}. Must be 'UnitTransformer' or 'UnitGaussianNormalizer'.")
 
     def get_loader(self):
         r1 = self.downsamplex
@@ -188,8 +218,13 @@ class pipe(object):
         y_test = y_test.reshape(self.ntest, -1, 1)
 
         if self.normalize:
-            self.x_normalizer = UnitTransformer(x_train)
-            self.y_normalizer = UnitTransformer(y_train)
+            # Use appropriate normalizer based on norm_type
+            if self.norm_type == 'UnitTransformer':
+                self.x_normalizer = UnitTransformer(x_train)
+                self.y_normalizer = UnitTransformer(y_train)
+            elif self.norm_type == 'UnitGaussianNormalizer':
+                self.x_normalizer = UnitGaussianNormalizer(x_train)
+                self.y_normalizer = UnitGaussianNormalizer(y_train)
 
             x_train = self.x_normalizer.encode(x_train)
             x_test = self.x_normalizer.encode(x_test)
@@ -219,6 +254,11 @@ class airfoil(object):
         self.ntrain = args.ntrain
         self.ntest = args.ntest
         self.normalize = args.normalize
+        self.norm_type = args.norm_type
+        
+        # Validate norm_type
+        if self.norm_type not in ["UnitTransformer", "UnitGaussianNormalizer"]:
+            raise ValueError(f"Unsupported norm_type: {self.norm_type}. Must be 'UnitTransformer' or 'UnitGaussianNormalizer'.")
 
     def get_loader(self):
         r1 = self.downsamplex
@@ -246,8 +286,13 @@ class airfoil(object):
         y_test = y_test.reshape(self.ntest, -1, 1)
 
         if self.normalize:
-            self.x_normalizer = UnitTransformer(x_train)
-            self.y_normalizer = UnitTransformer(y_train)
+            # Use appropriate normalizer based on norm_type
+            if self.norm_type == 'UnitTransformer':
+                self.x_normalizer = UnitTransformer(x_train)
+                self.y_normalizer = UnitTransformer(y_train)
+            elif self.norm_type == 'UnitGaussianNormalizer':
+                self.x_normalizer = UnitGaussianNormalizer(x_train)
+                self.y_normalizer = UnitGaussianNormalizer(y_train)
 
             x_train = self.x_normalizer.encode(x_train)
             x_test = self.x_normalizer.encode(x_test)
@@ -276,6 +321,11 @@ class darcy(object):
         self.ntrain = args.ntrain
         self.ntest = args.ntest
         self.normalize = args.normalize
+        self.norm_type = args.norm_type
+        
+        # Validate norm_type
+        if self.norm_type not in ["UnitTransformer", "UnitGaussianNormalizer"]:
+            raise ValueError(f"Unsupported norm_type: {self.norm_type}. Must be 'UnitTransformer' or 'UnitGaussianNormalizer'.")
 
     def get_loader(self):
         r1 = self.downsamplex
@@ -303,8 +353,13 @@ class darcy(object):
         print(test_data['coeff'].shape, test_data['sol'].shape)
 
         if self.normalize:
-            self.x_normalizer = UnitTransformer(x_train)
-            self.y_normalizer = UnitTransformer(y_train)
+            # Use appropriate normalizer based on norm_type
+            if self.norm_type == 'UnitTransformer':
+                self.x_normalizer = UnitTransformer(x_train)
+                self.y_normalizer = UnitTransformer(y_train)
+            elif self.norm_type == 'UnitGaussianNormalizer':
+                self.x_normalizer = UnitGaussianNormalizer(x_train)
+                self.y_normalizer = UnitGaussianNormalizer(y_train)
 
             x_train = self.x_normalizer.encode(x_train)
             x_test = self.x_normalizer.encode(x_test)
@@ -342,6 +397,11 @@ class ns(object):
         self.T_in = args.T_in
         self.T_out = args.T_out
         self.normalize = args.normalize
+        self.norm_type = args.norm_type
+        
+        # Validate norm_type
+        if self.norm_type not in ["UnitTransformer", "UnitGaussianNormalizer"]:
+            raise ValueError(f"Unsupported norm_type: {self.norm_type}. Must be 'UnitTransformer' or 'UnitGaussianNormalizer'.")
 
     def get_loader(self):
         r1 = self.downsamplex
@@ -366,8 +426,13 @@ class ns(object):
         test_u = torch.from_numpy(test_u)
 
         if self.normalize:
-            self.x_normalizer = UnitTransformer(train_a)
-            self.y_normalizer = UnitTransformer(train_u)
+            # Use appropriate normalizer based on norm_type
+            if self.norm_type == 'UnitTransformer':
+                self.x_normalizer = UnitTransformer(train_a)
+                self.y_normalizer = UnitTransformer(train_u)
+            elif self.norm_type == 'UnitGaussianNormalizer':
+                self.x_normalizer = UnitGaussianNormalizer(train_a)
+                self.y_normalizer = UnitGaussianNormalizer(train_u)
 
             train_a = self.x_normalizer.encode(train_a)
             test_a = self.x_normalizer.encode(test_a)
@@ -567,3 +632,128 @@ class car_design(object):
         train_loader = GraphDataset(train_data, use_cfd_mesh=False, r=self.radius, coef_norm=coef_norm)
         test_loader = GraphDataset(val_data, use_cfd_mesh=False, r=self.radius, coef_norm=coef_norm, valid_list=vallst)
         return train_loader, test_loader, [train_data[0].x.shape[0]]
+
+class cfd_3d_dataset(Dataset):
+    def __init__(self, data_path, downsamplex, downsampley, downsamplez, 
+                 T_in, T_out, out_dim, is_train=True, train_ratio=0.8):
+        self.data_path = data_path
+        self.T_in = T_in
+        self.T_out = T_out
+        self.out_dim = out_dim
+        self.is_train = is_train
+        
+        # Calculate grid sizes
+        self.r1 = downsamplex
+        self.r2 = downsampley
+        self.r3 = downsamplez
+        self.s1 = int(((128 - 1) / self.r1) + 1)
+        self.s2 = int(((128 - 1) / self.r2) + 1)
+        self.s3 = int(((128 - 1) / self.r3) + 1)
+        
+        # Create position grid once (reused for all samples)
+        with h5py.File(data_path, 'r') as h5_file:
+            x_coords = np.array(h5_file['x-coordinate'][::self.r1])[:self.s1]
+            y_coords = np.array(h5_file['y-coordinate'][::self.r2])[:self.s2]
+            z_coords = np.array(h5_file['z-coordinate'][::self.r3])[:self.s3]
+            
+            # Create grid
+            x = torch.tensor(x_coords, dtype=torch.float)
+            y = torch.tensor(y_coords, dtype=torch.float)
+            z = torch.tensor(z_coords, dtype=torch.float)
+            X, Y, Z = torch.meshgrid(x, y, z, indexing="ij")
+            self.grid = torch.stack((X, Y, Z), axis=-1)
+            self.grid_flat = self.grid.reshape(-1, 3)
+
+            first_field = sorted(h5_file.keys())[0]
+            num_samples = h5_file[first_field].shape[0]
+            self.ntrain = int(num_samples * train_ratio)
+            
+            # Set indices based on train or test
+            if self.is_train:
+                self.indices = np.arange(self.ntrain)
+            else:
+                self.indices = np.arange(self.ntrain, num_samples)
+        
+        self.fields = ['Vx', 'Vy', 'Vz', 'pressure', 'density']
+    
+    def __len__(self):
+        return len(self.indices)
+    
+    def __getitem__(self, idx):
+        sample_idx = self.indices[idx]
+        
+        # Initialize data arrays for this sample only (much smaller memory footprint)
+        a_data = np.zeros((self.grid_flat.shape[0], self.T_in * self.out_dim))
+        u_data = np.zeros((self.grid_flat.shape[0], self.T_out * self.out_dim))
+        # import pdb; pdb.set_trace()
+
+        
+        with h5py.File(self.data_path, 'r') as h5_file:
+            # Load input timesteps
+            for t_in in range(self.T_in):
+                for f_idx, field in enumerate(self.fields):
+                    var_data = h5_file[field][sample_idx, t_in, ::self.r1, ::self.r2, ::self.r3][:self.s1, :self.s2, :self.s3]
+                    var_data_flat = var_data.reshape(-1)
+                    a_data[:, t_in*self.out_dim + f_idx] = var_data_flat
+            
+            # Load output timesteps
+            for t_out in range(self.T_out):
+                for f_idx, field in enumerate(self.fields):
+                    var_data = h5_file[field][sample_idx, self.T_in + t_out, ::self.r1, ::self.r2, ::self.r3][:self.s1, :self.s2, :self.s3]
+                    var_data_flat = var_data.reshape(-1)
+                    u_data[:, t_out*self.out_dim + f_idx] = var_data_flat
+        
+        # Convert to tensors
+        a_data = torch.tensor(a_data, dtype=torch.float)
+        u_data = torch.tensor(u_data, dtype=torch.float)
+        
+        
+        return self.grid_flat, a_data, u_data
+
+class cfd3d(object):
+    def __init__(self, args):
+        self.data_path = args.data_path
+        self.downsamplex = args.downsamplex
+        self.downsampley = args.downsampley
+        self.downsamplez = args.downsamplez
+        self.batch_size = args.batch_size
+        self.train_ratio = args.train_ratio
+        self.out_dim = args.out_dim
+        self.T_in = args.T_in
+        self.T_out = args.T_out
+        
+
+    def get_loader(self):
+        r1 = self.downsamplex
+        r2 = self.downsampley
+        r3 = self.downsamplez
+        s1 = int(((128 - 1) / r1) + 1)
+        s2 = int(((128 - 1) / r2) + 1)
+        s3 = int(((128 - 1) / r3) + 1)
+        
+        train_dataset = cfd_3d_dataset(
+            self.data_path, self.downsamplex, self.downsampley, self.downsamplez,
+            self.T_in, self.T_out, self.out_dim, is_train=True, 
+            train_ratio=self.train_ratio,
+        )
+        
+        test_dataset = cfd_3d_dataset(
+            self.data_path, self.downsamplex, self.downsampley, self.downsamplez,
+            self.T_in, self.T_out, self.out_dim, is_train=False, 
+            train_ratio=self.train_ratio,
+        )
+        
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True
+        )
+
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=self.batch_size,
+            shuffle=True
+        )
+        
+        return train_loader, test_loader, [s1, s2, s3]
+    
