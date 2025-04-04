@@ -1,7 +1,7 @@
 python run.py \
---gpu 0 \
---data_path /data/fno/1D_diff-sorp_NA_NA.h5 \
---loader pdebench \
+--gpu 1 \
+--data_path /data/PDEBench/1D/diffusion-sorption/1D_diff-sorp_NA_NA.h5 \
+--loader pdebench_autoregressive \
 --geotype structured_1D \
 --task dynamic_autoregressive \
 --teacher_forcing 0 \
@@ -20,4 +20,4 @@ python run.py \
 --batch-size 20 \
 --epochs 500 \
 --eval 0 \
---save_name pdebench_FNO
+--save_name diff_sorp_FNO

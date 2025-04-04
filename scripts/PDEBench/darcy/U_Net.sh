@@ -1,9 +1,10 @@
 python run.py \
 --gpu 7 \
---data_path /data/PDEBench/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5 \
+--data_path /data/PDEBench/2D/DarcyFlow/2D_DarcyFlow_beta0.01_Train.hdf5 \
 --loader pdebench_steady_darcy \
 --geotype structured_2D \
 --task steady \
+--teacher_forcing 0 \
 --lr 1e-3 \
 --weight_decay 1e-4 \
 --scheduler StepLR \
@@ -12,8 +13,8 @@ python run.py \
 --space_dim 2 \
 --fun_dim 1 \
 --out_dim 1 \
---model FNO \
---n_hidden 20 \
+--model U_Net \
+--n_hidden 64 \
 --n_heads 8 \
 --n_layers 8 \
 --unified_pos 0 \
@@ -22,4 +23,4 @@ python run.py \
 --epochs 500 \
 --eval 0 \
 --ntrain 8000 \
---save_name pdebench_darcy_FNO
+--save_name pdebench_darcy_U_Net

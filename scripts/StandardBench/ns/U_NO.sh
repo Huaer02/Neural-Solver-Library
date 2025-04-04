@@ -1,13 +1,12 @@
 python run.py \
---gpu 0 \
+--gpu 4 \
 --data_path /data/fno/ \
 --loader ns \
 --geotype structured_2D \
 --task dynamic_autoregressive \
 --teacher_forcing 0 \
---lr 0.0005 \
---weight_decay 1e-4 \
 --scheduler StepLR \
+--optimizer Adam \
 --space_dim 2 \
 --fun_dim 10 \
 --out_dim 1 \
@@ -17,7 +16,7 @@ python run.py \
 --n_layers 8 \
 --unified_pos 0 \
 --ref 8 \
---batch-size 20 \
+--batch-size 16 \
 --epochs 500 \
 --eval 0 \
---save_name ns_U_NO
+--save_name ns_U_NO_Adam

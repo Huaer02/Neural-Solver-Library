@@ -1,5 +1,5 @@
 python run.py \
---gpu 0 \
+--gpu 3 \
 --data_path /data/fno \
 --loader darcy \
 --geotype structured_2D \
@@ -9,10 +9,10 @@ python run.py \
 --downsamplex 5 \
 --downsampley 5 \
 --space_dim 2 \
---fun_dim 0 \
+--fun_dim 1 \
 --out_dim 1 \
 --model Transformer \
---n_hidden 128 \
+--n_hidden 32 \
 --n_heads 8 \
 --n_layers 8 \
 --mlp_ratio 2 \

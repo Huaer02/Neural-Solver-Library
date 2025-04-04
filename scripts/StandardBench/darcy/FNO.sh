@@ -1,5 +1,5 @@
 python run.py \
---gpu 0 \
+--gpu 7 \
 --data_path /data/fno/ \
 --loader darcy \
 --geotype structured_2D \
@@ -20,5 +20,5 @@ python run.py \
 --ref 8 \
 --batch-size 4 \
 --epochs 500 \
---eval 0 \
+--eval 1 \
 --save_name darcy_FNO

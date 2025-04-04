@@ -1,28 +1,28 @@
 python run.py \
---gpu 0 \
---data_path /data/fno/ \
+--gpu 3 \
+--data_path /data/fno \
 --loader darcy \
 --geotype structured_2D \
---scheduler StepLR \
 --task steady \
 --normalize 1 \
---lr 0.0005 \
---optimizer Adam \
---weight_decay 1e-4 \
---norm_type UnitGaussianNormalizer \
+--derivloss 1 \
 --downsamplex 5 \
 --downsampley 5 \
 --space_dim 2 \
 --fun_dim 1 \
 --out_dim 1 \
---model LSM \
---n_hidden 64 \
+--model ONO \
+--n_hidden 128 \
 --n_heads 8 \
---n_layers 8 \
+--n_layers 10 \
+--mlp_ratio 2 \
 --slice_num 64 \
 --unified_pos 0 \
 --ref 8 \
---batch-size 20 \
+--batch-size 4 \
 --epochs 500 \
 --eval 0 \
---save_name darcy_LSM
+--psi_dim 32 \
+--max_grad_norm 0.1 \
+--save_name darcy_ONO
+

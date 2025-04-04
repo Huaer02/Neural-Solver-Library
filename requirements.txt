@@ -9,3 +9,5 @@ timm
 einops
 seaborn
 pyvista
+sympy
+nystrom_attention

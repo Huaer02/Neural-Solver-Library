@@ -17,6 +17,7 @@ parser.add_argument('--max_grad_norm', type=float, default=None, help='make the 
 parser.add_argument('--derivloss', type=bool, default=False, help='adopt the spatial derivate as regularization')
 parser.add_argument('--teacher_forcing', type=int, default=1,
                     help='adopt teacher forcing in autoregressive to speed up convergence')
+parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type, select from Adam, AdamW')
 parser.add_argument('--scheduler', type=str, default='OneCycleLR',
                     help='learning rate scheduler, select from [OneCycleLR, CosineAnnealingLR, StepLR]')
 parser.add_argument('--step_size', type=int, default=100, help='step size for StepLR scheduler')
@@ -29,6 +30,8 @@ parser.add_argument('--train_ratio', type=float, default=0.8, help='training dat
 parser.add_argument('--ntrain', type=int, default=1000, help='training data numbers')
 parser.add_argument('--ntest', type=int, default=200, help='test data numbers')
 parser.add_argument('--normalize', type=bool, default=False, help='make normalization to output')
+parser.add_argument('--norm_type', type=str, default='UnitTransformer',
+                    help='dataset normalize type. select from [UnitTransformer, UnitGaussianNormalizer]')
 parser.add_argument('--geotype', type=str, default='unstructured',
                     help='select from [unstructured, structured_1D, structured_2D, structured_3D]')
 parser.add_argument('--time_input', type=bool, default=False, help='for conditional dynamic task')
@@ -38,6 +41,7 @@ parser.add_argument('--out_dim', type=int, default=1, help='output observation d
 parser.add_argument('--shapelist', type=list, default=None, help='for structured geometry')
 parser.add_argument('--downsamplex', type=int, default=1, help='downsample rate in x-axis')
 parser.add_argument('--downsampley', type=int, default=1, help='downsample rate in y-axis')
+parser.add_argument('--downsamplez', type=int, default=1, help='downsample rate in z-axis')
 parser.add_argument('--radius', type=float, default=0.2, help='for construct geometry')
 
 ## task
@@ -60,7 +64,8 @@ parser.add_argument('--ref', type=int, default=8, help='number of reference poin
 ## model specific configuration
 parser.add_argument('--slice_num', type=int, default=32, help='number of physical states for Transolver')
 parser.add_argument('--modes', type=int, default=12, help='number of basis functions for LSM and FNO')
-
+parser.add_argument('--psi_dim', type=int, default=8, help='number of psi_dim for ONO')
+parser.add_argument('--attn_type', type=str, default='nystrom',help='attn_type for ONO, select from nystrom, linear, selfAttention')
 ## eval
 parser.add_argument('--eval', type=int, default=0, help='evaluation or not')
 parser.add_argument('--save_name', type=str, default='Transolver_check', help='name of folders')

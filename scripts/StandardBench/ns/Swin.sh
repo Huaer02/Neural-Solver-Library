@@ -1,5 +1,5 @@
 python run.py \
---gpu 2 \
+--gpu 7 \
 --data_path /data/fno \
 --loader ns \
 --geotype structured_2D \
@@ -8,12 +8,12 @@ python run.py \
 --fun_dim 10 \
 --out_dim 1 \
 --model Swin_Transformer \
---n_hidden 256 \
+--n_hidden 128 \
 --n_heads 8 \
 --n_layers 8 \
 --mlp_ratio 2 \
 --slice_num 32 \
---unified_pos 1 \
+--unified_pos 0 \
 --ref 8 \
 --batch-size 2 \
 --epochs 500 \

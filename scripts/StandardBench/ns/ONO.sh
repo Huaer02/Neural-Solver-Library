@@ -1,23 +1,26 @@
 python run.py \
---gpu 0 \
+--gpu 6 \
 --data_path /data/fno \
 --loader ns \
 --geotype structured_2D \
 --task dynamic_autoregressive \
+--scheduler OneCycleLR \
 --space_dim 2 \
---weight_decay 0.00005 \
 --fun_dim 10 \
+--attn_type selfAttention \
 --out_dim 1 \
---model GNOT \
---optimizer AdamW \
+--model ONO \
 --n_hidden 128 \
 --n_heads 8 \
---n_layers 3 \
---mlp_ratio 2 \
+--n_layers 8 \
+--mlp_ratio 1 \
 --slice_num 32 \
 --unified_pos 0 \
 --ref 8 \
---batch-size 4 \
+--batch-size 8 \
 --epochs 500 \
 --eval 0 \
---save_name ns_GNOT
+--psi_dim 16 \
+--teacher_forcing 0 \
+--max_grad_norm 0.1 \
+--save_name ns_ONO
