@@ -19,5 +19,5 @@ python run.py \
 --ref 8 \
 --batch-size 20 \
 --epochs 500 \
---eval 0 \
+--eval 1 \
 --save_name diff_sorp_FNO

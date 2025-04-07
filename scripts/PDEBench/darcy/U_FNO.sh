@@ -1,5 +1,5 @@
 python run.py \
---gpu 5 \
+--gpu 0 \
 --data_path /data/PDEBench/2D/DarcyFlow/2D_DarcyFlow_beta1.0_Train.hdf5 \
 --loader pdebench_steady_darcy \
 --geotype structured_2D \
@@ -10,7 +10,7 @@ python run.py \
 --space_dim 2 \
 --fun_dim 1 \
 --out_dim 1 \
---model U_Net \
+--model U_FNO \
 --n_hidden 64 \
 --n_heads 8 \
 --n_layers 8 \
@@ -20,4 +20,4 @@ python run.py \
 --epochs 500 \
 --eval 0 \
 --ntrain 8000 \
---save_name pdebench_darcy_U_Net
+--save_name pdebench_darcy_U_FNO
