@@ -363,26 +363,22 @@ def visual_structured_3d(x, y, out, args, id):
         ax6.set_xlabel('X')
         ax6.set_ylabel('Y')
 
-        # 计算三个中心截面的位置
         x_mid = data.shape[0] // 2
         y_mid = data.shape[1] // 2
         z_mid = data.shape[2] // 2
-        
-        # 添加X=50%的中心截面 (YZ平面)
+
         ax7 = fig.add_subplot(gs[2, 0])
         im7 = ax7.imshow(data[x_mid, :, :].T, cmap='coolwarm', origin='lower')
         ax7.set_title(f'X-Center Section (x={x_mid})')
         ax7.set_xlabel('Y')
         ax7.set_ylabel('Z')
-        
-        # 添加Y=50%的中心截面 (XZ平面)
+
         ax8 = fig.add_subplot(gs[2, 1])
         im8 = ax8.imshow(data[:, y_mid, :].T, cmap='coolwarm', origin='lower')
         ax8.set_title(f'Y-Center Section (y={y_mid})')
         ax8.set_xlabel('X')
         ax8.set_ylabel('Z')
-        
-        # 添加Z=50%的中心截面 (XY平面)
+
         ax9 = fig.add_subplot(gs[2, 2])
         im9 = ax9.imshow(data[:, :, z_mid], cmap='coolwarm', origin='lower')
         ax9.set_title(f'Z-Center Section (z={z_mid})')
