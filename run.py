@@ -66,6 +66,8 @@ parser.add_argument('--slice_num', type=int, default=32, help='number of physica
 parser.add_argument('--modes', type=int, default=12, help='number of basis functions for LSM and FNO')
 parser.add_argument('--psi_dim', type=int, default=8, help='number of psi_dim for ONO')
 parser.add_argument('--attn_type', type=str, default='nystrom',help='attn_type for ONO, select from nystrom, linear, selfAttention')
+parser.add_argument('--mwt_k', type=int, default=3,help='number of wavelet basis functions for MWT')
+
 ## eval
 parser.add_argument('--eval', type=int, default=0, help='evaluation or not')
 parser.add_argument('--save_name', type=str, default='Transolver_check', help='name of folders')

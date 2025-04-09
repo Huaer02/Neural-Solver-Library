@@ -1,11 +1,12 @@
 python run.py \
 --gpu 6 \
---data_path /data/fno/airfoil/naca \
---loader airfoil \
---geotype structured_2D \
---space_dim 2 \
---fun_dim 2 \
---out_dim 1 \
+--data_path /data/PDE_data/mlcfd_data/ \
+--loader car_design \
+--geotype unstructured \
+--task steady_design \
+--space_dim 3 \
+--fun_dim 7 \
+--out_dim 4 \
 --model Transolver \
 --n_hidden 128 \
 --n_heads 8 \
@@ -18,4 +19,4 @@ python run.py \
 --epochs 500 \
 --vis_bound 40 180 0 35 \
 --eval 0 \
---save_name airfoil_Transolver
+--save_name car_design_Transolver

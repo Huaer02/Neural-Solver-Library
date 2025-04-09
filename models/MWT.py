@@ -15,13 +15,15 @@ ConvList = [None, nn.Conv1d, nn.Conv2d, nn.Conv3d]
 
 class Model(nn.Module):
     # this model requires H = W = Z and H, W, Z is the power of two
-    def __init__(self, args, k=3, alpha=2, L=0, c=1, base='legendre', s1=128, s2=128):
+    def __init__(self, args, alpha=2, L=0, c=1, base='legendre', s1=128, s2=128):
         super(Model, self).__init__()
         self.__name__ = 'MWT'
         self.args = args
-        self.WMT_dim = c * (k ** 2)
+        self.k = args.mwt_k
+        self.WMT_dim = c * self.k ** 2
+        if args.geotype == 'structured_1D':
+            self.WMT_dim = c * self.k
         self.c = c
-        self.k = k
         self.s1 = s1
         self.s2 = s2
         ## embedding
@@ -48,7 +50,7 @@ class Model(nn.Module):
             self.padding = [(target - size) for size in args.shapelist]
             self.augmented_resolution = [target for _ in range(len(self.padding))]
         self.spectral_layers = nn.ModuleList(
-            [BlockList[len(self.padding)](k=k, alpha=alpha, L=L, c=c, base=base) for _ in range(args.n_layers)])
+            [BlockList[len(self.padding)](k=self.k, alpha=alpha, L=L, c=c, base=base) for _ in range(args.n_layers)])
         # projectors
         self.fc1 = nn.Linear(self.WMT_dim, args.n_hidden)
         self.fc2 = nn.Linear(args.n_hidden, args.out_dim)
@@ -74,7 +76,7 @@ class Model(nn.Module):
             elif len(self.args.shapelist) == 3:
                 x = F.pad(x, [0, self.padding[2], 0, self.padding[1], 0, self.padding[0]])
         x = x.reshape(B, self.WMT_dim, -1).permute(0, 2, 1).contiguous() \
-            .reshape(B, *self.augmented_resolution, self.c, self.k ** 2)
+            .reshape(B, *self.augmented_resolution, self.c, self.k ** 2 if self.args.geotype != 'structured_1D' else self.k) 
         for i in range(self.args.n_layers):
             x = self.spectral_layers[i](x)
             if i < self.args.n_layers - 1:
