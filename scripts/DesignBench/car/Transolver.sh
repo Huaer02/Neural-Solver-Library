@@ -8,15 +8,14 @@ python run.py \
 --fun_dim 7 \
 --out_dim 4 \
 --model Transolver \
---n_hidden 128 \
+--n_hidden 256 \
 --n_heads 8 \
 --n_layers 8 \
 --mlp_ratio 2 \
---slice_num 64 \
+--slice_num 32 \
 --unified_pos 0 \
 --ref 8 \
---batch-size 4 \
---epochs 500 \
---vis_bound 40 180 0 35 \
+--batch-size 1 \
+--epochs 200 \
 --eval 0 \
 --save_name car_design_Transolver

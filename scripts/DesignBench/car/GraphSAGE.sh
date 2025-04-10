@@ -1,5 +1,5 @@
 python run.py \
---gpu 6 \
+--gpu 2 \
 --data_path /data/PDE_data/mlcfd_data/ \
 --loader car_design \
 --geotype unstructured \
@@ -7,7 +7,7 @@ python run.py \
 --space_dim 3 \
 --fun_dim 7 \
 --out_dim 4 \
---model Transolver \
+--model GraphSAGE \
 --n_hidden 128 \
 --n_heads 8 \
 --n_layers 8 \
@@ -16,6 +16,6 @@ python run.py \
 --unified_pos 0 \
 --ref 8 \
 --batch-size 1 \
---epochs 500 \
+--epochs 200 \
 --eval 0 \
---save_name car_design_Transolver
+--save_name car_design_GraphSAGE

@@ -1,5 +1,5 @@
 python run.py \
---gpu 3 \
+--gpu 1 \
 --data_path /data/PDE_data/mlcfd_data/ \
 --loader car_design \
 --geotype unstructured \
@@ -7,8 +7,8 @@ python run.py \
 --space_dim 3 \
 --fun_dim 7 \
 --out_dim 4 \
---model Graph_UNet \
---n_hidden 16 \
+--model GNOT \
+--n_hidden 256 \
 --n_heads 8 \
 --n_layers 8 \
 --mlp_ratio 2 \
@@ -18,4 +18,4 @@ python run.py \
 --batch-size 1 \
 --epochs 200 \
 --eval 0 \
---save_name car_design_GraphUNet
+--save_name car_design_GNOT
