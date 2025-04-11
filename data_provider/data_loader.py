@@ -556,7 +556,7 @@ class pdebench_steady_darcy(object):
         s2 = int(((128 - 1) / r2) + 1)
         with h5py.File(self.file_path, "r") as h5_file:
             data_nu = np.array(h5_file['nu'], dtype='f')[:, ::r1, ::r2][:, :s1, :s2]
-            data_solution = np.array(h5_file['tensor'], dtype='f')[:, ::r1, ::r2][:, :s1, :s2]
+            data_solution = np.array(h5_file['tensor'], dtype='f')[:, :, ::r1, ::r2][:,:, :s1, :s2]
             data_nu = torch.from_numpy(data_nu)
             data_solution = torch.from_numpy(data_solution)
             x = np.array(h5_file['x-coordinate'])
