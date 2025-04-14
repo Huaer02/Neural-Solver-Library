@@ -121,9 +121,6 @@ class FlashAttention(nn.Module):
         v = rearrange(v, 'b n (h d) -> b h n d', h=self.heads)
         
         # Flash attention implementation
-        # Scale query
-        q = q * self.scale
-
         attn_output = F.scaled_dot_product_attention(
             q, k, v,
             dropout_p=self.dropout.p if self.training else 0.0,
