@@ -46,6 +46,7 @@ Some classical geometric deep  models are also included for design tasks:
 - [x] **GraphSAGE** - Inductive Representation Learning on Large Graphs [[NeurIPS 2017]](https://arxiv.org/pdf/1706.02216) [[Code]](https://github.com/thuml/Neural-Solver-Library/blob/main/models/GraphSAGE.py)
 - [x] **PointNet** - PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation [[CVPR 2017]](https://arxiv.org/pdf/1612.00593) [[Code]](https://github.com/thuml/Neural-Solver-Library/blob/main/models/PointNet.py)
 
+🌟 We have made a great effort to ensure good reproducibility, and are glad to claim that the official results of all the above methods can be completely reproduced (sometimes even better) by this library. 
 
 ## Usage
 
@@ -56,7 +57,7 @@ pip install -r requirements.txt
 ```
 
 2. Prepare Data
-3. Train and evaluate model. We provide the experiment scripts for all benchmarks under the folder `./scripts/`. You can reproduce the experiment results as the following examples:
+3. Train and evaluate the model. We provide the experiment scripts for all benchmarks under the folder `./scripts/`. You can reproduce the experiment results as follows:
 
 ```bash
 bash ./scripts/StandardBench/airfoil/Transolver.sh
