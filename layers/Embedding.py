@@ -5,13 +5,14 @@ from einops import rearrange
 import numpy as np
 
 
-def unified_pos_embedding(shapelist, ref, batchsize=1):
+def unified_pos_embedding(shapelist, ref, batchsize=1, device='cuda'):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
     if len(shapelist) == 1:
         size_x = shapelist[0]
         gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float)
-        grid = gridx.reshape(1, size_x, 1).repeat([batchsize, 1, 1]).cuda()  # B N 1
+        grid = gridx.reshape(1, size_x, 1).repeat([batchsize, 1, 1]).to(device)  # B N 1
         gridx = torch.tensor(np.linspace(0, 1, ref), dtype=torch.float)
-        grid_ref = gridx.reshape(1, ref, 1).repeat([batchsize, 1, 1]).cuda()  # B N 1
+        grid_ref = gridx.reshape(1, ref, 1).repeat([batchsize, 1, 1]).to(device)  # B N 1
         pos = torch.sqrt(torch.sum((grid[:, :, None, :] - grid_ref[:, None, :, :]) ** 2, dim=-1)). \
             reshape(batchsize, size_x, ref).contiguous()
     if len(shapelist) == 2:
@@ -20,13 +21,13 @@ def unified_pos_embedding(shapelist, ref, batchsize=1):
         gridx = gridx.reshape(1, size_x, 1, 1).repeat([batchsize, 1, size_y, 1])
         gridy = torch.tensor(np.linspace(0, 1, size_y), dtype=torch.float)
         gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
-        grid = torch.cat((gridx, gridy), dim=-1).cuda()  # B H W 2
+        grid = torch.cat((gridx, gridy), dim=-1).to(device)  # B H W 2
 
         gridx = torch.tensor(np.linspace(0, 1, ref), dtype=torch.float)
         gridx = gridx.reshape(1, ref, 1, 1).repeat([batchsize, 1, ref, 1])
         gridy = torch.tensor(np.linspace(0, 1, ref), dtype=torch.float)
         gridy = gridy.reshape(1, 1, ref, 1).repeat([batchsize, ref, 1, 1])
-        grid_ref = torch.cat((gridx, gridy), dim=-1).cuda()  # B H W 8 8 2
+        grid_ref = torch.cat((gridx, gridy), dim=-1).to(device)  # B H W 8 8 2
 
         pos = torch.sqrt(torch.sum((grid[:, :, :, None, None, :] - grid_ref[:, None, None, :, :, :]) ** 2, dim=-1)). \
             reshape(batchsize, size_x * size_y, ref * ref).contiguous()
@@ -38,7 +39,7 @@ def unified_pos_embedding(shapelist, ref, batchsize=1):
         gridy = gridy.reshape(1, 1, size_y, 1, 1).repeat([batchsize, size_x, 1, size_z, 1])
         gridz = torch.tensor(np.linspace(0, 1, size_z), dtype=torch.float)
         gridz = gridz.reshape(1, 1, 1, size_z, 1).repeat([batchsize, size_x, size_y, 1, 1])
-        grid = torch.cat((gridx, gridy, gridz), dim=-1).cuda()  # B H W D 3
+        grid = torch.cat((gridx, gridy, gridz), dim=-1).to(device)  # B H W D 3
 
         gridx = torch.tensor(np.linspace(0, 1, ref), dtype=torch.float)
         gridx = gridx.reshape(1, ref, 1, 1, 1).repeat([batchsize, 1, ref, ref, 1])
@@ -46,7 +47,7 @@ def unified_pos_embedding(shapelist, ref, batchsize=1):
         gridy = gridy.reshape(1, 1, ref, 1, 1).repeat([batchsize, ref, 1, ref, 1])
         gridz = torch.tensor(np.linspace(0, 1, ref), dtype=torch.float)
         gridz = gridz.reshape(1, 1, 1, ref, 1).repeat([batchsize, ref, ref, 1, 1])
-        grid_ref = torch.cat((gridx, gridy, gridz), dim=-1).cuda()  # B 4 4 4 3
+        grid_ref = torch.cat((gridx, gridy, gridz), dim=-1).to(device)  # B 4 4 4 3
 
         pos = torch.sqrt(
             torch.sum((grid[:, :, :, :, None, None, None, :] - grid_ref[:, None, None, None, :, :, :, :]) ** 2,
@@ -63,8 +64,9 @@ class RotaryEmbedding(nn.Module):
         self.scale = scale
         self.register_buffer('inv_freq', inv_freq)
 
-    def forward(self, coordinates, device):
+    def forward(self, coordinates, device='cuda'):
         # coordinates [b, n]
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
         t = coordinates.to(device).type_as(self.inv_freq)
         t = t * (self.scale / self.min_freq)
         freqs = torch.einsum('... i , j -> ... i j', t, self.inv_freq)  # [b, n, d//2]
