@@ -25,6 +25,7 @@ class Galerkin_Transformer_block(nn.Module):
         super().__init__()
         self.last_layer = last_layer
         self.ln_1 = nn.LayerNorm(hidden_dim)
+        self.ln_1a = nn.LayerNorm(hidden_dim)
         self.Attn = LinearAttention(hidden_dim, heads=num_heads, dim_head=hidden_dim // num_heads,
                                     dropout=dropout, attn_type='galerkin')
         self.ln_2 = nn.LayerNorm(hidden_dim)
@@ -34,7 +35,7 @@ class Galerkin_Transformer_block(nn.Module):
             self.mlp2 = nn.Linear(hidden_dim, out_dim)
 
     def forward(self, fx):
-        fx = self.Attn(self.ln_1(fx)) + fx
+        fx = self.Attn(self.ln_1(fx), self.ln_1a(fx)) + fx
         fx = self.mlp(self.ln_2(fx)) + fx
         if self.last_layer:
             return self.mlp2(self.ln_3(fx))
