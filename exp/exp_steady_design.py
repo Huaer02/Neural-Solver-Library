@@ -131,13 +131,15 @@ class Exp_Steady_Design(Exp_Basic):
                     std = torch.tensor(self.test_loader.coef_norm[3]).cuda()
                     pred_press = out[surf, -1] * std[-1] + mean[-1]
                     gt_press = y[surf, -1] * std[-1] + mean[-1]
+                    pred_surf_velo = out[surf, :-1] * std[:-1] + mean[:-1]
+                    gt_surf_velo = y[surf, :-1] * std[:-1] + mean[:-1]
                     pred_velo = out[~surf, :-1] * std[:-1] + mean[:-1]
                     gt_velo = y[~surf, :-1] * std[:-1] + mean[:-1]
 
                 pred_coef = cal_coefficient(obj_file.split('/')[1], pred_press[:, None].detach().cpu().numpy(),
-                                            pred_velo.detach().cpu().numpy())
+                                            pred_surf_velo.detach().cpu().numpy())
                 gt_coef = cal_coefficient(obj_file.split('/')[1], gt_press[:, None].detach().cpu().numpy(),
-                                          gt_velo.detach().cpu().numpy())
+                                          gt_surf_velo.detach().cpu().numpy())
 
                 gt_coef_list.append(gt_coef)
                 pred_coef_list.append(pred_coef)
