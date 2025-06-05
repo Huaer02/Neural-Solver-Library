@@ -18,4 +18,5 @@ python run.py \
 --epochs 500 \
 --eval 0 \
 --max_grad_norm 0.1 \
+--normalize 1 \
 --save_name pipe_F_FNO

@@ -21,4 +21,5 @@ python run.py \
 --batch-size 4 \
 --epochs 500 \
 --eval 0 \
+--normalize 1 \
 --save_name darcy_Factformer
