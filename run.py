@@ -15,7 +15,7 @@ parser.add_argument('--batch-size', type=int, default=8, help='batch size')
 parser.add_argument("--gpu", type=str, default='0', help="GPU index to use")
 parser.add_argument('--max_grad_norm', type=float, default=None, help='make the training stable')
 parser.add_argument('--derivloss', type=bool, default=False, help='adopt the spatial derivate as regularization')
-parser.add_argument('--teacher_forcing', type=int, default=1,
+parser.add_argument('--teacher_forcing', type=int, default=0,
                     help='adopt teacher forcing in autoregressive to speed up convergence')
 parser.add_argument('--optimizer', type=str, default='AdamW', help='optimizer type, select from Adam, AdamW')
 parser.add_argument('--scheduler', type=str, default='OneCycleLR',
@@ -27,6 +27,8 @@ parser.add_argument('--gamma', type=float, default=0.5, help='decay parameter fo
 parser.add_argument('--data_path', type=str, default='/data/fno/', help='data folder')
 parser.add_argument('--loader', type=str, default='airfoil', help='type of data loader')
 parser.add_argument('--train_ratio', type=float, default=0.8, help='training data ratio')
+parser.add_argument("--val_ratio", type=float, default=0.0, help="validation data ratio")
+parser.add_argument("--test_ratio", type=float, default=0.2, help="test data ratio")
 parser.add_argument('--ntrain', type=int, default=1000, help='training data numbers')
 parser.add_argument('--ntest', type=int, default=200, help='test data numbers')
 parser.add_argument('--normalize', type=bool, default=False, help='make normalization to output')

@@ -13,15 +13,29 @@ def count_parameters(model):
     print(f"Total Trainable Params: {total_params}")
     return total_params
 
+def count_parameters_in_logger(model, logger = None):
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: continue
+        params = parameter.numel()
+        total_params += params
+    if logger is not None:
+        logger.info(f"Total Trainable Params: {total_params}")
+    else:
+        print(f"Total Trainable Params: {total_params}")
+    return total_params
 
 class Exp_Basic(object):
     def __init__(self, args):
-        self.dataset, self.train_loader, self.test_loader, args.shapelist = get_data(args)
+        if args.loader == 'pdebench_unified':
+            self.dataset, self.train_loader, self.val_loader, self.test_loader, args.shapelist = get_data(args)
+        else:
+            self.dataset, self.train_loader, self.test_loader, args.shapelist = get_data(args)
         self.model = get_model(args).cuda()
         self.args = args
-        print(self.args)
-        print(self.model)
-        count_parameters(self.model)
+        # print(self.args)
+        # print(self.model)
+        # count_parameters(self.model)
 
     def vali(self):
         pass
