@@ -56,7 +56,7 @@ Some classical geometric deep  models are also included for design tasks:
 pip install -r requirements.txt
 ```
 
-2. Prepare Data
+2. Prepare Data. You can obtain the data from our previous repository [here](https://github.com/thuml/Transolver).
 3. Train and evaluate the model. We provide the experiment scripts for all benchmarks under the folder `./scripts/`. You can reproduce the experiment results as follows:
 
 ```bash
