@@ -1366,7 +1366,8 @@ class pdebench_unified(object):
         self.downsamplex = getattr(args, "downsamplex", 1)
         self.downsampley = getattr(args, "downsampley", 1)
         self.downsamplez = getattr(args, "downsamplez", 1)
-        self.preload = getattr(args, "preload", False)
+        self.preload = getattr(args, "preload", True)
+        self.num_workers = getattr(args, "num_workers", 4)  # 默认值改为4
         self.normalize = getattr(args, "normalize", False)
         self.norm_type = getattr(args, "norm_type", "UnitGaussianNormalizer")
 
@@ -1454,12 +1455,18 @@ class pdebench_unified(object):
                 self.output_normalizer.cuda()
 
         # 创建数据加载器
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers
+        )
 
         if val_dataset is not None:
-            val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
+            val_loader = torch.utils.data.DataLoader(
+                val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers
+            )
 
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers
+        )
 
         # 返回空间形状信息
         shape_info = list(train_dataset.spatial_shape)
