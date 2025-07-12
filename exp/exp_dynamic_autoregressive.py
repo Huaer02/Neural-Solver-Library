@@ -2,15 +2,16 @@ import os
 import torch
 import time
 from datetime import datetime
-from exp.exp_basic import Exp_Basic, count_parameters_in_logger
+from exp.exp_basic import Exp_Basic
 from models.model_factory import get_model
 from data_provider.data_factory import get_data
 from utils.loss import L2Loss, MultiMetricLoss
 import matplotlib.pyplot as plt
 from utils.visual import visual
 import numpy as np
-
 import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Exp_Dynamic_Autoregressive(Exp_Basic):
@@ -18,27 +19,6 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         super(Exp_Dynamic_Autoregressive, self).__init__(args)
 
         self.metric_calculator = MultiMetricLoss(loss_type="l2", size_average=False)
-
-        logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
-
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-
-        file_handler = logging.FileHandler(f"./log/{args.save_name}.log")
-        file_handler.setLevel(logging.INFO)
-
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        console_handler.setFormatter(formatter)
-        file_handler.setFormatter(formatter)
-
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
-        self.logger = logger
-
-        self.logger.info(self.args)
-        self.logger.info(self.model)
-        count_parameters_in_logger(self.model, self.logger)
 
     def vali(self):
         vali_start_time = time.time()
@@ -83,9 +63,9 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         return test_l2_full, test_metrics_full, vali_time
 
     def train(self):
-        self.logger.info("=" * 80)
-        self.logger.info(f"Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info("=" * 80)
+        logger.info("=" * 80)
+        logger.info(f"Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 80)
 
         train_start_time = time.time()
 
@@ -181,61 +161,61 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
 
             epoch_total_time = time.time() - epoch_start_time
 
-            self.logger.info(
+            logger.info(
                 "Epoch {} Train L2 step: {:.5e} ({:.8f}) Train L2 full: {:.5e} ({:.8f})".format(
                     ep, train_loss_step, train_loss_step, train_loss_full, train_loss_full
                 )
             )
-            self.logger.info(
+            logger.info(
                 "         Train MAE: {:.5e} ({:.8f})".format(train_metrics_avg["mae"], train_metrics_avg["mae"])
             )
-            self.logger.info(
+            logger.info(
                 "         Train MAPE: {:.5e} ({:.8f})".format(train_metrics_avg["mape"], train_metrics_avg["mape"])
             )
-            self.logger.info(
+            logger.info(
                 "         Train RMSE: {:.5e} ({:.8f})".format(train_metrics_avg["rmse"], train_metrics_avg["rmse"])
             )
 
-            self.logger.info("Epoch {} Test L2 full: {:.5e} ({:.8f})".format(ep, test_loss_full, test_loss_full))
-            self.logger.info(
+            logger.info("Epoch {} Test L2 full: {:.5e} ({:.8f})".format(ep, test_loss_full, test_loss_full))
+            logger.info(
                 "         Test MAE full: {:.5e} ({:.8f})".format(test_metrics_full["mae"], test_metrics_full["mae"])
             )
-            self.logger.info(
+            logger.info(
                 "         Test MAPE full: {:.5e} ({:.8f})".format(test_metrics_full["mape"], test_metrics_full["mape"])
             )
-            self.logger.info(
+            logger.info(
                 "         Test RMSE full: {:.5e} ({:.8f})".format(test_metrics_full["rmse"], test_metrics_full["rmse"])
             )
-            self.logger.info(
+            logger.info(
                 "         Train Time: {:.2f}s | Vali Time: {:.2f}s | Total Time: {:.2f}s".format(
                     epoch_train_time, vali_time, epoch_total_time
                 )
             )
-            self.logger.info("-" * 80)
+            logger.info("-" * 80)
 
             if ep % 100 == 0:
                 if not os.path.exists("./checkpoints"):
                     os.makedirs("./checkpoints")
-                self.logger.info("save models")
+                logger.info("save models")
                 torch.save(self.model.state_dict(), os.path.join("./checkpoints", self.args.save_name + ".pt"))
 
         total_train_time = time.time() - train_start_time
 
         if not os.path.exists("./checkpoints"):
             os.makedirs("./checkpoints")
-        self.logger.info("final save models")
+        logger.info("final save models")
         torch.save(self.model.state_dict(), os.path.join("./checkpoints", self.args.save_name + ".pt"))
 
-        self.logger.info("=" * 80)
-        self.logger.info(f"Training completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info(f"Total training time: {total_train_time:.2f}s ({total_train_time/3600:.2f}h)")
-        self.logger.info(f"Average time per epoch: {total_train_time/self.args.epochs:.2f}s")
-        self.logger.info("=" * 80)
+        logger.info("=" * 80)
+        logger.info(f"Training completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"Total training time: {total_train_time:.2f}s ({total_train_time/3600:.2f}h)")
+        logger.info(f"Average time per epoch: {total_train_time/self.args.epochs:.2f}s")
+        logger.info("=" * 80)
 
     def test(self):
-        self.logger.info("=" * 80)
-        self.logger.info(f"Testing started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info("=" * 80)
+        logger.info("=" * 80)
+        logger.info(f"Testing started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 80)
 
         test_start_time = time.time()
 
@@ -288,17 +268,17 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
 
         total_test_time = time.time() - test_start_time
 
-        self.logger.info("=" * 80)
-        self.logger.info("Final Test Results:")
-        self.logger.info("L2 Relative Error: {:.5e} ({:.8f})".format(rel_err, rel_err))
-        self.logger.info("MAE: {:.5e} ({:.8f})".format(test_metrics["mae"], test_metrics["mae"]))
-        self.logger.info("MAPE: {:.5e} ({:.8f})".format(test_metrics["mape"], test_metrics["mape"]))
-        self.logger.info("RMSE: {:.5e} ({:.8f})".format(test_metrics["rmse"], test_metrics["rmse"]))
-        self.logger.info("-" * 40)
-        self.logger.info("Time Statistics:")
-        self.logger.info(f"Total test time: {total_test_time:.2f}s")
-        self.logger.info(f"Pure inference time: {inference_time:.2f}s")
-        self.logger.info(f"Average time per sample: {inference_time/len(self.test_loader.dataset):.4f}s")
-        self.logger.info(f"Samples per second: {len(self.test_loader.dataset)/inference_time:.2f}")
-        self.logger.info(f"Testing completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info("=" * 80)
+        logger.info("=" * 80)
+        logger.info("Final Test Results:")
+        logger.info("L2 Relative Error: {:.5e} ({:.8f})".format(rel_err, rel_err))
+        logger.info("MAE: {:.5e} ({:.8f})".format(test_metrics["mae"], test_metrics["mae"]))
+        logger.info("MAPE: {:.5e} ({:.8f})".format(test_metrics["mape"], test_metrics["mape"]))
+        logger.info("RMSE: {:.5e} ({:.8f})".format(test_metrics["rmse"], test_metrics["rmse"]))
+        logger.info("-" * 40)
+        logger.info("Time Statistics:")
+        logger.info(f"Total test time: {total_test_time:.2f}s")
+        logger.info(f"Pure inference time: {inference_time:.2f}s")
+        logger.info(f"Average time per sample: {inference_time/len(self.test_loader.dataset):.4f}s")
+        logger.info(f"Samples per second: {len(self.test_loader.dataset)/inference_time:.2f}")
+        logger.info(f"Testing completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 80)

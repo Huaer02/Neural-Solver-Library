@@ -5,10 +5,13 @@ import numpy as np
 import torch
 import h5py
 import scipy.io as scio
+import logging
 from data_provider.shapenet_utils import get_datalist
 from data_provider.shapenet_utils import GraphDataset
 from torch.utils.data import Dataset
 from utils.normalizer import UnitTransformer, UnitGaussianNormalizer
+
+logger = logging.getLogger(__name__)
 
 
 class plas(object):
@@ -74,7 +77,7 @@ class plas(object):
         data = scio.loadmat(self.DATA_PATH)
         input = torch.tensor(data["input"], dtype=torch.float)
         output = torch.tensor(data["output"], dtype=torch.float)
-        print(input.shape, output.shape)
+        logger.info(input.shape, output.shape)
         x_train = input[: self.ntrain, ::r1][:, :s1].reshape(self.ntrain, s1, 1).repeat(1, 1, s2)
         x_train = x_train.reshape(self.ntrain, -1, 1)
         y_train = output[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
@@ -83,7 +86,7 @@ class plas(object):
         x_test = x_test.reshape(self.ntest, -1, 1)
         y_test = output[-self.ntest :, ::r1, ::r2][:, :s1, :s2]
         y_test = y_test.reshape(self.ntest, -1, self.T_out * self.out_dim)
-        print(x_train.shape, y_train.shape)
+        logger.info(x_train.shape, y_train.shape)
 
         # Use appropriate normalizer based on norm_type
         if self.norm_type == "UnitTransformer":
@@ -128,7 +131,7 @@ class plas(object):
         test_loader = torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(pos_test, t_test, x_test, y_test), batch_size=self.batch_size, shuffle=False
         )
-        print("Dataloading is over.")
+        logger.info("Dataloading is over.")
         return train_loader, test_loader, [s1, s2]
 
 
@@ -161,7 +164,7 @@ class elas(object):
         train_xy = input_xy[: self.ntrain]
         test_xy = input_xy[-self.ntest :]
 
-        print(input_s.shape, input_xy.shape)
+        logger.info(input_s.shape, input_xy.shape)
 
         if self.normalize:
             # Use appropriate normalizer based on norm_type
@@ -179,7 +182,7 @@ class elas(object):
         test_loader = torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(test_xy, test_xy, test_s), batch_size=self.batch_size, shuffle=False
         )
-        print("Dataloading is over.")
+        logger.info("Dataloading is over.")
         return train_loader, test_loader, [train_s.shape[1]]
 
 
@@ -216,7 +219,7 @@ class pipe(object):
 
         output = np.load(self.OUTPUT_Sigma)[:, 0]
         output = torch.tensor(output, dtype=torch.float)
-        print(input.shape, output.shape)
+        logger.info(input.shape, output.shape)
 
         x_train = input[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
         y_train = output[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
@@ -249,7 +252,7 @@ class pipe(object):
         test_loader = torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(x_test, x_test, y_test), batch_size=self.batch_size, shuffle=False
         )
-        print("Dataloading is over.")
+        logger.info("Dataloading is over.")
         return train_loader, test_loader, [s1, s2]
 
 
@@ -286,7 +289,7 @@ class airfoil(object):
 
         output = np.load(self.OUTPUT_Sigma)[:, 4]
         output = torch.tensor(output, dtype=torch.float)
-        print(input.shape, output.shape)
+        logger.info(input.shape, output.shape)
 
         x_train = input[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
         y_train = output[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
@@ -319,7 +322,7 @@ class airfoil(object):
         test_loader = torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(x_test, x_test, y_test), batch_size=self.batch_size, shuffle=False
         )
-        print("Dataloading is over.")
+        logger.info("Dataloading is over.")
         return train_loader, test_loader, [s1, s2]
 
 
@@ -363,8 +366,8 @@ class darcy(object):
         y_test = y_test.reshape(self.ntest, -1, 1)
         y_test = torch.from_numpy(y_test)
 
-        print(train_data["coeff"].shape, train_data["sol"].shape)
-        print(test_data["coeff"].shape, test_data["sol"].shape)
+        logger.info(train_data["coeff"].shape, train_data["sol"].shape)
+        logger.info(test_data["coeff"].shape, test_data["sol"].shape)
 
         if self.normalize:
             # Use appropriate normalizer based on norm_type
@@ -397,7 +400,7 @@ class darcy(object):
         test_loader = torch.utils.data.DataLoader(
             torch.utils.data.TensorDataset(pos_test, x_test, y_test), batch_size=self.batch_size, shuffle=False
         )
-        print("Dataloading is over.")
+        logger.info("Dataloading is over.")
         return train_loader, test_loader, [s1, s2]
 
 
@@ -428,7 +431,7 @@ class ns(object):
         s2 = int(((64 - 1) / r2) + 1)
 
         data = scio.loadmat(self.data_path)
-        print(data["u"].shape)
+        logger.info(data["u"].shape)
         train_a = data["u"][: self.ntrain, ::r1, ::r2, None, : self.T_in][:, :s1, :s2, :, :]
         train_a = train_a.reshape(train_a.shape[0], -1, self.out_dim * train_a.shape[-1])
         train_a = torch.from_numpy(train_a)
@@ -474,7 +477,7 @@ class ns(object):
             torch.utils.data.TensorDataset(pos_test, test_a, test_u), batch_size=self.batch_size, shuffle=False
         )
 
-        print("Dataloading is over.")
+        logger.info("Dataloading is over.")
         return train_loader, test_loader, [s1, s2]
 
 
@@ -602,7 +605,7 @@ class pdebench_npy_dataset(Dataset):
 
         # 加载数据
         self.data = np.load(self.data_file)
-        print(f"Loaded {split} data with shape: {self.data.shape}")
+        logger.info(f"Loaded {split} data with shape: {self.data.shape}")
 
         # 推断数据维度和形状
         self.n_samples = self.data.shape[0]
@@ -726,7 +729,7 @@ class pdebench_npy(object):
 
         # 如果需要归一化，计算归一化参数
         if self.normalize:
-            print("Computing normalization parameters...")
+            logger.info("Computing normalization parameters...")
             all_input_data = []
             all_output_data = []
 
@@ -754,7 +757,7 @@ class pdebench_npy(object):
             self.input_normalizer = input_normalizer
             self.output_normalizer = output_normalizer
 
-            print("Normalization parameters computed.")
+            logger.info("Normalization parameters computed.")
 
         # 创建带归一化的数据集
         train_dataset = pdebench_npy_dataset(
@@ -800,7 +803,7 @@ class pdebench_npy(object):
         else:  # 2D
             shape_info = list(train_dataset.spatial_shape)
 
-        print("Dataloading is over.")
+        logger.info("Dataloading is over.")
         return train_loader, test_loader, shape_info
 
 
@@ -879,11 +882,11 @@ class car_design(object):
         vallst = samples[self.test_fold_id] if 0 <= self.test_fold_id < len(samples) else None
 
         if os.path.exists(os.path.join(self.file_path, "preprocessed_data")):
-            print("use preprocessed data")
+            logger.info("use preprocessed data")
             preprocessed = True
         else:
             preprocessed = False
-        print("loading data")
+        logger.info("loading data")
         train_dataset, coef_norm = get_datalist(
             self.file_path,
             trainlst,
@@ -898,7 +901,7 @@ class car_design(object):
             savedir=os.path.join(self.file_path, "preprocessed_data"),
             preprocessed=preprocessed,
         )
-        print("load data finish")
+        logger.info("load data finish")
         return train_dataset, val_dataset, coef_norm, vallst
 
     def get_loader(self):
@@ -958,7 +961,7 @@ class cfd_3d_dataset(Dataset):
     def __getitem__(self, idx):
         sample_idx = self.indices[idx]
 
-        # Initialize data arrays for this sample only (much smaller memory footprint)
+        # Initialize data arrays for this sample only (much smaller memory footlogger.info)
         a_data = np.zeros((self.grid_flat.shape[0], self.T_in * self.out_dim))
         u_data = np.zeros((self.grid_flat.shape[0], self.T_out * self.out_dim))
         # import pdb; pdb.set_trace()
@@ -1230,7 +1233,7 @@ class pdebench_unified_dataset(Dataset):
 
     def _preload_data(self):
         """预加载所有数据到内存"""
-        print(f"Preloading {len(self.sample_indices)} samples from {self.file_path}...")
+        logger.info(f"Preloading {len(self.sample_indices)} samples from {self.file_path}...")
         self.preloaded_data = {}
 
         with h5py.File(self.file_path, "r") as h5_file:
@@ -1257,12 +1260,12 @@ class pdebench_unified_dataset(Dataset):
 
                 self.preloaded_data[sample_idx] = torch.tensor(sample_data, dtype=torch.float)
 
-        print("Preloading completed!")
+        logger.info("Preloading completed!")
 
     def _setup_normalizers(self):
         """设置归一化器"""
         if self.split == "train":  # 只在训练集上计算归一化参数
-            print("Computing normalization parameters...")
+            logger.info("Computing normalization parameters...")
             all_input_data = []
             all_output_data = []
 
@@ -1283,7 +1286,7 @@ class pdebench_unified_dataset(Dataset):
                 self.input_normalizer = UnitGaussianNormalizer(all_input_data)
                 self.output_normalizer = UnitGaussianNormalizer(all_output_data)
 
-            print("Normalization parameters computed.")
+            logger.info("Normalization parameters computed.")
 
     def _get_raw_item(self, idx):
         """获取原始数据项（不应用归一化）"""
@@ -1471,17 +1474,17 @@ class pdebench_unified(object):
         # 返回空间形状信息
         shape_info = list(train_dataset.spatial_shape)
 
-        print(f"Dataloading is over. Dataset info:")
-        print(f"  - Dimension: {train_dataset.dim}D")
-        print(f"  - Original spatial shape: {train_dataset.original_spatial_shape}")
-        print(f"  - Downsampled spatial shape: {train_dataset.spatial_shape}")
-        print(f"  - Downsample ratios: x={self.downsamplex}, y={self.downsampley}, z={self.downsamplez}")
-        print(f"  - Output channels: {train_dataset.out_dim}")
-        print(f"  - Train samples: {len(train_dataset)}")
+        logger.info(f"Dataloading is over. Dataset info:")
+        logger.info(f"  - Dimension: {train_dataset.dim}D")
+        logger.info(f"  - Original spatial shape: {train_dataset.original_spatial_shape}")
+        logger.info(f"  - Downsampled spatial shape: {train_dataset.spatial_shape}")
+        logger.info(f"  - Downsample ratios: x={self.downsamplex}, y={self.downsampley}, z={self.downsamplez}")
+        logger.info(f"  - Output channels: {train_dataset.out_dim}")
+        logger.info(f"  - Train samples: {len(train_dataset)}")
         if val_dataset is not None:
-            print(f"  - Val samples: {len(val_dataset)}")
-        print(f"  - Test samples: {len(test_dataset)}")
-        print(f"  - Preload: {self.preload}")
-        print(f"  - Normalize: {self.normalize}")
+            logger.info(f"  - Val samples: {len(val_dataset)}")
+        logger.info(f"  - Test samples: {len(test_dataset)}")
+        logger.info(f"  - Preload: {self.preload}")
+        logger.info(f"  - Normalize: {self.normalize}")
 
         return train_loader, val_loader, test_loader, shape_info
