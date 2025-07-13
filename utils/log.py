@@ -27,7 +27,7 @@ def setup_logger(save_name, log_dir="./log"):
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
 
-    return logger
+    return logger, f"{save_name}_{current_time}"
 
 
 def get_logger(name=None):

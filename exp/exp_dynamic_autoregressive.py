@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from utils.visual import visual
 import numpy as np
 import logging
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +19,21 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
     def __init__(self, args):
         super(Exp_Dynamic_Autoregressive, self).__init__(args)
 
-        self.metric_calculator = MultiMetricLoss(loss_type="l2", size_average=False)
+        data_loss_type = getattr(args, 'data_loss_type', 'l2')
+        
+        is_multitask = hasattr(args, 'use_multitask') and args.use_multitask
+        
+        self.metric_calculator = MultiMetricLoss(
+            loss_type=data_loss_type,
+            is_multitask=is_multitask,
+            size_average=False, 
+            args=args,
+            use_dwa=getattr(args, 'use_dwa', True) if is_multitask else False
+        )
+
 
     def vali(self):
         vali_start_time = time.time()
-
-        myloss = L2Loss(size_average=False)
         test_l2_full = 0
         test_metrics_full = {"mae": 0, "mape": 0, "rmse": 0}
 
@@ -32,12 +42,15 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         all_targets = []
 
         with torch.no_grad():
-            for x, fx, yy in self.test_loader:
+            for x, fx, yy in tqdm(self.test_loader, unit="batchs", leave=False):
                 x, fx, yy = x.cuda(), fx.cuda(), yy.cuda()
                 for t in range(self.args.T_out):
                     if self.args.fun_dim == 0:
                         fx = None
                     im = self.model(x, fx=fx)
+                    if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
+                        _, final_pred, _, _ = im
+                        im = final_pred
                     if t == 0:
                         pred = im
                     else:
@@ -53,9 +66,8 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         all_preds = torch.cat(all_preds, dim=0)
         all_targets = torch.cat(all_targets, dim=0)
 
-        test_l2_full = myloss(all_preds, all_targets).item() / len(self.test_loader.dataset)
-
-        _, test_metrics_full = self.metric_calculator(all_preds, all_targets, return_all_metrics=True)
+        test_metrics_full = self.metric_calculator.compute_data_metrics(all_preds, all_targets)
+        test_l2_full = self.metric_calculator.compute_data_loss_only(all_preds, all_targets) / len(self.test_loader.dataset)
 
         vali_end_time = time.time()
         vali_time = vali_end_time - vali_start_time
@@ -89,18 +101,15 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         elif self.args.scheduler == "StepLR":
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.args.step_size, gamma=self.args.gamma)
 
-        myloss = L2Loss(size_average=False)
-
-        for ep in range(self.args.epochs):
+        for ep in tqdm(range(self.args.epochs), desc="Training Epochs", unit="epoch", leave=True):
             epoch_start_time = time.time()
 
             self.model.train()
             train_l2_step = 0
             train_l2_full = 0
-            train_metrics_sum = {"mae": 0, "mape": 0, "rmse": 0}
+            train_metrics_sum = {"l2": 0, "mae": 0, "mape": 0, "rmse": 0}
             total_samples = 0
-
-            for pos, fx, yy in self.train_loader:
+            for pos, fx, yy in tqdm(self.train_loader, unit="batchs", leave=False):
                 loss = 0
                 x, fx, yy = pos.cuda(), fx.cuda(), yy.cuda()
 
@@ -110,12 +119,24 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                         fx = None
                     im = self.model(x, fx=fx)
 
-                    step_loss = myloss(im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1))
+                    if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
+                        # im -> (res_out, final_pred, mi_loss, club_loss)
+                        res_out, final_pred, mi_loss, club_loss = im
+                        res_loss = torch.mean(torch.abs(res_out))
+                        im = final_pred
+
+                        step_loss, loss_dict, step_metrics = self.metric_calculator(
+                            im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1),
+                            res_loss, mi_loss, club_loss, return_all_metrics=True
+                        )
+                    else:
+                        step_loss, step_metrics = self.metric_calculator(
+                            im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1), 
+                            return_all_metrics=True
+                        )
+
                     loss += step_loss
 
-                    _, step_metrics = self.metric_calculator(
-                        im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1), return_all_metrics=True
-                    )
                     for key in train_metrics_sum.keys():
                         train_metrics_sum[key] += step_metrics[key].item() * x.shape[0]
 
@@ -130,7 +151,9 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                         fx = torch.cat((fx[..., self.args.out_dim :], im), dim=-1)
 
                 train_l2_step += loss.item()
-                train_l2_full += myloss(pred.reshape(x.shape[0], -1), yy.reshape(x.shape[0], -1)).item()
+                train_l2_full += self.metric_calculator.compute_data_loss_only(
+                    pred.reshape(x.shape[0], -1), yy.reshape(x.shape[0], -1)
+                ).item()
 
                 total_samples += x.shape[0]
 
@@ -150,21 +173,24 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
             train_loss_step = train_l2_step / (total_samples * float(self.args.T_out))
             train_loss_full = train_l2_full / total_samples
 
-            # 需要在时间维度上也平均
             train_metrics_avg = {
                 key: value / (total_samples * float(self.args.T_out)) for key, value in train_metrics_sum.items()
             }
+            train_metrics_avg['l2'] /= (total_samples / float(self.args.T_out))
 
             epoch_train_time = time.time() - epoch_start_time
 
             test_loss_full, test_metrics_full, vali_time = self.vali()
 
             epoch_total_time = time.time() - epoch_start_time
-
+            logger.info("-" * 80)
             logger.info(
-                "Epoch {} Train L2 step: {:.5e} ({:.8f}) Train L2 full: {:.5e} ({:.8f})".format(
+                "Epoch {} Train loss step: {:.5e} ({:.8f}) Train loss full: {:.5e} ({:.8f})".format(
                     ep, train_loss_step, train_loss_step, train_loss_full, train_loss_full
                 )
+            )
+            logger.info(
+                "         Train L2: {:.5e} ({:.8f})".format(train_metrics_avg['l2'], train_metrics_avg['l2'])
             )
             logger.info(
                 "         Train MAE: {:.5e} ({:.8f})".format(train_metrics_avg["mae"], train_metrics_avg["mae"])
@@ -227,14 +253,13 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         rel_err = 0.0
         test_metrics = {"mae": 0, "mape": 0, "rmse": 0}
         id = 0
-        myloss = L2Loss(size_average=False)
 
         inference_start_time = time.time()
         all_preds = []
         all_targets = []
 
         with torch.no_grad():
-            for x, fx, yy in self.test_loader:
+            for x, fx, yy in tqdm(self.test_loader, unit="batchs", leave=False):
                 id += 1
                 x, fx, yy = x.cuda(), fx.cuda(), yy.cuda()
                 for t in range(self.args.T_out):
@@ -242,6 +267,10 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                         fx = None
                     im = self.model(x, fx=fx)
                     fx = torch.cat((fx[..., self.args.out_dim :], im), dim=-1)
+                    if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
+                        _, final_pred, _, _ = im
+                        im = final_pred
+
                     if t == 0:
                         pred = im
                     else:
@@ -261,10 +290,9 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         all_preds = torch.cat(all_preds, dim=0)
         all_targets = torch.cat(all_targets, dim=0)
 
-        rel_err = myloss(all_preds, all_targets).item()
-        rel_err /= len(self.test_loader.dataset)
+        rel_err = self.metric_calculator.compute_data_loss_only(all_preds, all_targets) / len(self.test_loader.dataset)
 
-        _, test_metrics = self.metric_calculator(all_preds, all_targets, return_all_metrics=True)
+        test_metrics = self.metric_calculator.compute_data_metrics(all_preds, all_targets)
 
         total_test_time = time.time() - test_start_time
 

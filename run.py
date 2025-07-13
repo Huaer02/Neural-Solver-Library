@@ -88,6 +88,28 @@ parser.add_argument(
 )
 parser.add_argument("--mwt_k", type=int, default=3, help="number of wavelet basis functions for MWT")
 
+## Decom_ffno specific configuration
+parser.add_argument("--use_multitask", type=bool, default=False, help="whether to use multitask learning for decom_ffno")
+parser.add_argument("--use_dwa", type=bool, default=False, help="whether to use dynamic weighted averaging for decom_ffno")
+parser.add_argument("--dwa_temperature", type=float, default=2.0, help="temperature parameter for dynamic weighted averaging")
+parser.add_argument("--dwa_alpha", type=float, default=None, help="smoothing factor for dynamic weighted averaging")
+parser.add_argument("--loss_type", type=str, default="l2", help="loss type for decom_ffno")
+parser.add_argument(
+    "--decom_ffno_loss_weights",
+    type=float,
+    nargs="+",
+    default=[1.0, 1.0, 1.0, 1.0],
+    help="loss weights for decom_ffno [data_loss_weight, res_loss_weight, mi_loss_weight, club_loss_weight]",
+)
+parser.add_argument(
+    "--decom_ffno_loss_active",
+    type=bool,
+    nargs="+",
+    default=[True, True, True, True],
+    help="whether to activate each loss for decom_ffno [data_loss_active, res_loss_active, mi_loss_active, club_loss_active]",
+)
+
+
 ## eval
 parser.add_argument("--eval", type=int, default=0, help="evaluation or not")
 parser.add_argument("--save_name", type=str, default="Transolver_check", help="name of folders")
@@ -98,8 +120,15 @@ args = parser.parse_args()
 eval = args.eval
 save_name = args.save_name
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-setup_logger(save_name, log_dir=f"./log/{args.model}/")
+_, save_name = setup_logger(save_name, log_dir=f"./log/{args.model}/cuda_{args.gpu}/")
+args.save_name = save_name
 logger = logging.getLogger(__name__)
+
+logger.info("Arguments:")
+logger.info(f"cuda: {args.gpu}")
+logger.info(f"save_name: {args.save_name}")
+logger.info(f"lr: {args.lr}")
+logger.info(f"model: {args.model}")
 
 
 def main():

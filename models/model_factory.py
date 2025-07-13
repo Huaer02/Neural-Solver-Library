@@ -1,5 +1,5 @@
 from models import Transolver, LSM, FNO, U_Net, Transformer, Factformer, Swin_Transformer, Galerkin_Transformer, GNOT, \
-    U_NO, U_FNO, F_FNO, ONO, MWT, GraphSAGE, Graph_UNet, PointNet
+    U_NO, U_FNO, F_FNO, ONO, MWT, GraphSAGE, Graph_UNet, PointNet, Decom_ffno
 
 
 def get_model(args):
@@ -21,5 +21,6 @@ def get_model(args):
         'FNO': FNO,
         'Transolver': Transolver,
         'LSM': LSM,
+        "Decom_ffno": Decom_ffno
     }
     return model_dict[args.model].Model(args)

@@ -1,7 +1,9 @@
 import torch
 import torch.nn.functional as F
 from einops import rearrange
+import logging
 
+logger = logging.getLogger(__name__)
 
 class L2Loss(object):
     def __init__(self, d=2, p=2, size_average=True, reduction=True):
@@ -98,26 +100,79 @@ def rmse_loss(y_pred, y_true):
     return torch.sqrt(loss.mean())
 
 
-class MultiMetricLoss(object):
-    """
-    综合损失和指标管理类
-    支持多种损失函数和指标计算，可以选择任意一个作为主损失函数
-    """
-    def __init__(self, loss_type='l2', d=2, p=2, size_average=True, reduction=True, shapelist=None):
+class DynamicWeightAveraging:
+    """动态权重平均 (DWA) 实现"""
+    def __init__(self, initial_weights, temperature=2.0, alpha=None):
         """
         Args:
-            loss_type: 主损失函数类型 ('l2', 'mae', 'mape', 'rmse', 'deriv')
-            其他参数用于L2Loss和DerivLoss的初始化
+            initial_weights: 初始权重列表 [data_weight, res_weight, mi_weight, club_weight]
+            temperature: 温度参数
+            alpha: 平滑系数 (0 < alpha < 1) 越接近 1 越平滑
+        """
+        self.temperature = temperature
+        self.prev_losses = None
+        self.alpha = alpha
+        if isinstance(initial_weights, list):
+            self.current_weights = torch.tensor(initial_weights, dtype=torch.float32).cuda()
+        else:
+            self.current_weights = initial_weights.clone().cuda()
+    
+    def update_weights(self, current_losses):
+        """
+        根据当前损失更新权重
+        Args:
+            current_losses: 当前各任务的损失值 (tensor or list)
+        Returns:
+            updated_weights: 更新后的权重 (tensor)
+        """
+        if isinstance(current_losses, list):
+            current_losses = torch.tensor(current_losses, dtype=torch.float32)
+        
+        if self.prev_losses is None:
+            # 第一次调用，返回初始权重
+            self.prev_losses = current_losses.clone().detach()
+            return self.current_weights
+        else:
+            loss_ratios = abs(current_losses) / (abs(self.prev_losses) + 1e-8)
+
+            num_tasks = len(current_losses)
+            dwa_weights = F.softmax(loss_ratios / self.temperature, dim=0) * num_tasks
+            if self.alpha is None:
+                self.current_weights = dwa_weights
+            else:
+                self.current_weights = self.alpha * self.current_weights.detach() + (1 - self.alpha) * dwa_weights
+            self.prev_losses = current_losses.clone().detach()
+            
+            return self.current_weights
+
+
+class MultiMetricLoss(object):
+    """
+    统一的损失和指标管理类
+    支持单任务和多任务损失计算
+    """
+    def __init__(self, loss_type='l2', d=2, p=2, size_average=True, reduction=True, 
+                 shapelist=None, args=None, use_dwa=False, is_multitask=False):
+        """
+        Args:
+            loss_type: 数据损失函数类型 ('l2', 'mae', 'mape', 'rmse', 'deriv')
+            is_multitask: 是否为多任务模式
+            use_dwa: 是否使用动态权重平均
+            args: 参数对象，包含多任务损失权重
         """
         self.loss_type = loss_type.lower()
+        self.is_multitask = is_multitask
+        self.size_average = size_average
+        self.use_dwa = use_dwa
+        self.args = args
         
-        # 初始化各种损失函数
+        # 初始化所有可能用到的损失函数
         self.l2_loss = L2Loss(d=d, p=p, size_average=size_average, reduction=reduction)
         if shapelist is not None:
             self.deriv_loss = DerivLoss(d=d, p=p, size_average=size_average, reduction=reduction, shapelist=shapelist)
         else:
             self.deriv_loss = None
-            
+        
         # 损失函数映射
         self.loss_functions = {
             'l2': self.l2_loss,
@@ -127,23 +182,78 @@ class MultiMetricLoss(object):
             'deriv': self.deriv_loss
         }
         
-        # 验证损失函数类型
+        # 验证损失类型
         if self.loss_type not in self.loss_functions:
-            raise ValueError(f"Unsupported loss type: {loss_type}")
+            raise ValueError(f"Unsupported loss type: {self.loss_type}")
         
         if self.loss_type == 'deriv' and self.deriv_loss is None:
             raise ValueError("DerivLoss requires shapelist parameter")
+        
+        # 如果是多任务模式，初始化多任务相关参数
+        if self.is_multitask:
+            self._init_multitask_weights()
     
-    def compute_all_metrics(self, y_pred, y_true):
+    def _init_multitask_weights(self):
+        """初始化多任务权重和状态"""
+        # [data_loss_weight, res_loss_weight, mi_loss_weight, club_loss_weight]
+        # [data_loss_active, res_loss_active, mi_loss_active, club_loss_active]
+        decom_ffno_loss_weights = getattr(self.args, 'decom_ffno_loss_weights', [1.0, 1.0, 1.0, 1.0])
+        decom_ffno_loss_active = getattr(self.args, 'decom_ffno_loss_active', [True, True, True, True])
+        
+        if len(decom_ffno_loss_weights) != 4:
+            logger.warning(f"decom_ffno_loss_weights length is {len(decom_ffno_loss_weights)}, expected 4. Using defaults.")
+            decom_ffno_loss_weights = [1.0, 1.0, 1.0, 1.0]
+        
+        if len(decom_ffno_loss_active) != 4:
+            logger.warning(f"decom_ffno_loss_active length is {len(decom_ffno_loss_active)}, expected 4. Using defaults.")
+            decom_ffno_loss_active = [True, True, True, True]
+        
+        self.data_weight = decom_ffno_loss_weights[0]
+        self.res_weight = decom_ffno_loss_weights[1]
+        self.mi_weight = decom_ffno_loss_weights[2]
+        self.club_weight = decom_ffno_loss_weights[3]
+        
+        self.data_loss_active = decom_ffno_loss_active[0]
+        self.res_loss_active = decom_ffno_loss_active[1]
+        self.mi_loss_active = decom_ffno_loss_active[2]
+        self.club_loss_active = decom_ffno_loss_active[3]
+        
+        self.dwa_alpha = getattr(self.args, 'dwa_alpha', None)
+        self.dwa_temperature = getattr(self.args, 'dwa_temperature', 2.0)
+        
+        self.active_tasks = [
+            self.data_loss_active,
+            self.res_loss_active, 
+            self.mi_loss_active,
+            self.club_loss_active
+        ]
+        self.num_active_tasks = sum(self.active_tasks)
+        
+        logger.info(f"Active tasks: {self.active_tasks}, Number of active tasks: {self.num_active_tasks}")
+        logger.info(f"Initial loss weights: data={self.data_weight}, res={self.res_weight}, mi={self.mi_weight}, club={self.club_weight}")
+        
+        if self.use_dwa and self.num_active_tasks > 1:
+            initial_weights = [self.data_weight, self.res_weight, self.mi_weight, self.club_weight]
+            self.dwa = DynamicWeightAveraging(initial_weights=initial_weights, temperature=self.dwa_temperature, alpha=self.dwa_alpha)
+            logger.info(f"DWA initialized with weights: {initial_weights}")
+
+    def compute_data_loss(self, y_pred, y_true):
         """
-        计算所有指标
+        根据指定的损失类型计算数据损失
+        Args:
+            y_pred: 预测值
+            y_true: 真实值
         Returns:
-            dict: 包含所有指标的字典
+            计算得到的损失值
         """
+        loss_fn = self.loss_functions[self.loss_type]
+        return loss_fn(y_pred, y_true)
+
+    def compute_data_metrics(self, y_pred, y_true):
         metrics = {}
         
         # L2 relative loss
-        metrics['l2_rel'] = self.l2_loss(y_pred, y_true)
+        metrics['l2'] = self.l2_loss(y_pred, y_true)
         
         # MAE
         metrics['mae'] = mae_loss(y_pred, y_true)
@@ -160,34 +270,134 @@ class MultiMetricLoss(object):
         
         return metrics
     
-    def __call__(self, y_pred, y_true, return_all_metrics=True):
+    def compute_multitask_loss(self, im, y_true, res_loss, mi_loss, club_loss):
         """
-        计算主损失函数和所有指标
+        计算多任务损失
         Args:
-            y_pred: 预测值
+            im: 模型输出
             y_true: 真实值
-            return_all_metrics: 是否返回所有指标
+            res_loss: 残差损失
+            mi_loss: 互信息损失  
+            club_loss: CLUB损失
         Returns:
-            如果return_all_metrics=True，返回(主损失, 所有指标字典)
-            否则只返回主损失
+            total_loss, loss_dict, metrics_dict
         """
-        # 计算主损失
-        main_loss = self.loss_functions[self.loss_type](y_pred, y_true)
+        data_loss = self.compute_data_loss(im, y_true)
         
-        if return_all_metrics:
-            # 计算所有指标
-            all_metrics = self.compute_all_metrics(y_pred, y_true)
-            return main_loss, all_metrics
+        all_losses = [data_loss, res_loss, mi_loss, club_loss]
+        loss_names = ['data', 'res', 'mi', 'club']
+
+        active_losses = []
+        active_names = []
+        active_indices = []
+        
+        for i, (loss, active, name) in enumerate(zip(all_losses, self.active_tasks, loss_names)):
+            if active:
+                active_losses.append(loss)
+                active_names.append(name)
+                active_indices.append(i)
+        
+        if len(active_losses) == 0:
+            raise ValueError("At least one loss must be active for multitask training")
+
+        if self.use_dwa and len(active_losses) > 1:
+            updated_weights = self.dwa.update_weights(torch.stack(active_losses))
+            updated_weights = updated_weights.to(data_loss.device)
+
+            weight_attrs = ['data_weight', 'res_weight', 'mi_weight', 'club_weight']
+            for i, (attr_name, new_weight) in enumerate(zip(weight_attrs, updated_weights)):
+                setattr(self, attr_name, new_weight.item())
+
+            final_weights = [updated_weights[i] for i in active_indices]
+            
+            logger.debug(f"DWA updated weights: data={self.data_weight:.4f}, res={self.res_weight:.4f}, mi={self.mi_weight:.4f}, club={self.club_weight:.4f}")
         else:
-            return main_loss
+            all_weights = [self.data_weight, self.res_weight, self.mi_weight, self.club_weight]
+            final_weights = [torch.tensor(all_weights[i]).to(data_loss.device) for i in active_indices]
+        
+        weighted_losses = [w * loss for w, loss in zip(final_weights, active_losses)]
+        total_loss = sum(weighted_losses)
+        
+        loss_dict = {
+            'total': total_loss,
+            'data': data_loss,
+            'res': res_loss,
+            'mi': mi_loss,
+            'club': club_loss,
+            'data_loss_type': self.loss_type,
+            'active_losses': {name: loss for name, loss in zip(active_names, active_losses)},
+            'weights': {
+                'data': self.data_weight if self.data_loss_active else 0.0,
+                'res': self.res_weight if self.res_loss_active else 0.0,
+                'mi': self.mi_weight if self.mi_loss_active else 0.0,
+                'club': self.club_weight if self.club_loss_active else 0.0
+            },
+            'active_status': {
+                'data': self.data_loss_active,
+                'res': self.res_loss_active,
+                'mi': self.mi_loss_active,
+                'club': self.club_loss_active
+            }
+        }
+
+        logger.debug(f"Loss computation details:")
+        logger.debug(f"  Total Loss: {total_loss.item():.6f}")
+        logger.debug(f"  Individual losses - data: {data_loss.item():.6f}, res: {res_loss.item():.6f}, mi: {mi_loss.item():.6f}, club: {club_loss.item():.6f}")
+        logger.debug(f"  Current weights - data: {self.data_weight:.4f}, res: {self.res_weight:.4f}, mi: {self.mi_weight:.4f}, club: {self.club_weight:.4f}")
+        
+        metrics_dict = self.compute_data_metrics(im, y_true)
+        
+        return total_loss, loss_dict, metrics_dict
+    
+    def compute_data_loss_only(self, y_pred, y_true):
+        """
+        只计算数据损失，用于训练过程中的监控
+        使用当前配置的损失类型
+        """
+        return self.compute_data_loss(y_pred, y_true)
+
+    def __call__(self, *args, return_all_metrics=True, **kwargs):
+        """
+        统一的调用接口
+        
+        单任务模式: loss_fn(y_pred, y_true, return_all_metrics=True)
+        多任务模式: loss_fn(im, y_true, res_loss, mi_loss, club_loss, return_all_metrics=True)
+        """
+        if self.is_multitask:
+            if len(args) != 5:
+                raise ValueError("Multitask mode requires 5 arguments: (im, y_true, res_loss, mi_loss, club_loss)")
+            
+            im, y_true, res_loss, mi_loss, club_loss = args
+            total_loss, loss_dict, metrics_dict = self.compute_multitask_loss(
+                im, y_true, res_loss, mi_loss, club_loss
+            )
+            
+            if return_all_metrics:
+                return total_loss, loss_dict, metrics_dict
+            else:
+                return total_loss
+        
+        else:
+            if len(args) != 2:
+                raise ValueError("Single task mode requires 2 arguments: (y_pred, y_true)")
+            
+            y_pred, y_true = args
+            
+            main_loss = self.compute_data_loss(y_pred, y_true)
+            
+            if return_all_metrics:
+                all_metrics = self.compute_data_metrics(y_pred, y_true)
+                return main_loss, all_metrics
+            else:
+                return main_loss
 
 
-# 便捷函数，用于创建不同类型的损失函数
-def create_loss_function(loss_type='l2', **kwargs):
+def create_loss_function(loss_type='l2', is_multitask=False, **kwargs):
     """
     创建损失函数的便捷函数
     Args:
-        loss_type: 损失函数类型
+        loss_type: 数据损失函数类型
+        is_multitask: 是否为多任务模式
         **kwargs: 其他参数
     """
-    return MultiMetricLoss(loss_type=loss_type, **kwargs)
+    return MultiMetricLoss(loss_type=loss_type, is_multitask=is_multitask, **kwargs)
