@@ -14,8 +14,9 @@ class Model(nn.Module):
         self.__name__ = 'Decom-FFNO'
         self.args = args
         
-        # Basic configuration
-        self.space_dim = getattr(args, 'space_dim', 2)
+        # Basic configuration``
+        self.space_dim_args = getattr(args, 'space_dim', 2)
+        self.space_dim = len(self.args.shapelist)
         if self.space_dim not in [1, 2, 3]:
             raise ValueError(f"Unsupported space_dim: {self.space_dim}. Must be 1, 2, or 3.")
         
@@ -50,7 +51,7 @@ class Model(nn.Module):
             )
         else:
             self.preprocess = MLP(
-                args.fun_dim + args.space_dim, 
+                args.fun_dim + self.space_dim_args, 
                 args.n_hidden * 2, 
                 args.n_hidden,
                 n_layers=0, 
@@ -78,7 +79,7 @@ class Model(nn.Module):
             block = self.DecomBlock(
                 modes=self.modes,
                 width=self.width,
-                input_dim=self.width + self.space_dim,  # include grid coordinates
+                input_dim=self.width + self.space_dim_args,  # include grid coordinates
                 output_dim=self.out_dim,
                 n_layers=self.n_layers,
                 mode=getattr(args, 'fft_mode', 'full'),
@@ -223,9 +224,10 @@ class Model(nn.Module):
             # Statistical features
             global_mean = signal_tensor.mean(dim=spatial_dims)
             global_std = signal_tensor.std(dim=spatial_dims)
+
             global_max = signal_tensor
-            for dim in spatial_dims:
-                global_max = global_max.max(dim=dim)[0]
+            for dim in reversed(spatial_dims):  # Process from last spatial dim to first
+                global_max = global_max.max(dim=dim)[0]  # [batch_size, channels]
             
             # Gradient features based on dimension
             grad_features = []

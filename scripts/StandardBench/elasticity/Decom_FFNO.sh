@@ -8,7 +8,7 @@ python run.py \
 --fun_dim 0 \
 --out_dim 1 \
 --normalize 1 \
---model F_FNO \
+--model Decom_ffno \
 --n_hidden 128 \
 --n_heads 8 \
 --n_layers 8 \
@@ -17,7 +17,9 @@ python run.py \
 --unified_pos 0 \
 --ref 8 \
 --batch-size 16 \
---epochs 10 \
+--epochs 1 \
 --eval 0 \
 --max_grad_norm 0.1 \
---save_name elas_F_FNO
+--use_multitask True \
+--use_dwa True \
+--save_name elas_Decom_ffno

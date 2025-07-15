@@ -9,7 +9,7 @@ python run.py \
 --space_dim 2 \
 --fun_dim 0 \
 --out_dim 1 \
---model F_FNO \
+--model Decom_ffno \
 --n_hidden 32 \
 --n_heads 8 \
 --n_layers 8 \
@@ -17,7 +17,9 @@ python run.py \
 --unified_pos 0 \
 --ref 8 \
 --batch-size 20 \
---epochs 500 \
+--epochs 2 \
 --vis_bound 40 180 0 35 \
 --eval 0 \
---save_name airfoil_F_FNO
+--use_multitask True \
+--use_dwa True \
+--save_name airfoil_Decom_ffno

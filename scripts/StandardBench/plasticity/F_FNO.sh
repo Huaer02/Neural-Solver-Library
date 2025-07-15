@@ -1,6 +1,6 @@
 python run.py \
 --gpu 5 \
---data_path /data/fno/ \
+--data_path ./data/Geo-FNO/plasticity \
 --loader plas \
 --geotype structured_2D \
 --task dynamic_conditional \
@@ -19,7 +19,8 @@ python run.py \
 --unified_pos 0 \
 --ref 8 \
 --batch-size 8 \
---epochs 500 \
+--epochs 5 \
 --eval 0 \
+--vis_num 0 \
 --max_grad_norm 0.1 \
 --save_name plas_F_FNO

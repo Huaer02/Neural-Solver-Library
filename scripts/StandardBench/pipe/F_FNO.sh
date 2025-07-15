@@ -1,6 +1,6 @@
 python run.py \
 --gpu 6 \
---data_path /data/fno/pipe \
+--data_path ./data/Geo-FNO/pipe \
 --loader pipe \
 --geotype structured_2D \
 --space_dim 2 \
@@ -14,8 +14,8 @@ python run.py \
 --slice_num 64 \
 --unified_pos 0 \
 --ref 8 \
---batch-size 4 \
---epochs 500 \
+--batch-size 16 \
+--epochs 5 \
 --eval 0 \
 --max_grad_norm 0.1 \
 --normalize 1 \

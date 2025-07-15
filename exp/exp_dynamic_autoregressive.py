@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-
 class Exp_Dynamic_Autoregressive(Exp_Basic):
     def __init__(self, args):
         super(Exp_Dynamic_Autoregressive, self).__init__(args)
@@ -30,7 +29,6 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
             args=args,
             use_dwa=getattr(args, 'use_dwa', True) if is_multitask else False
         )
-
 
     def vali(self):
         vali_start_time = time.time()
@@ -166,7 +164,7 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
 
                 if self.args.scheduler == "OneCycleLR":
                     scheduler.step()
-
+            logger.info(f"Epoch {ep} Learning rate: {optimizer.param_groups[0]['lr']}")
             if self.args.scheduler == "CosineAnnealingLR" or self.args.scheduler == "StepLR":
                 scheduler.step()
 
@@ -266,10 +264,10 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                     if self.args.fun_dim == 0:
                         fx = None
                     im = self.model(x, fx=fx)
-                    fx = torch.cat((fx[..., self.args.out_dim :], im), dim=-1)
                     if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
                         _, final_pred, _, _ = im
                         im = final_pred
+                    fx = torch.cat((fx[..., self.args.out_dim :], im), dim=-1)                    
 
                     if t == 0:
                         pred = im

@@ -1,6 +1,6 @@
 python run.py \
 --gpu 2 \
---data_path /data/fno/airfoil/naca \
+--data_path ./data/Geo-FNO/airfoil/naca \
 --loader airfoil \
 --geotype structured_2D \
 --space_dim 2 \

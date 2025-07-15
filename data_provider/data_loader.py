@@ -77,7 +77,8 @@ class plas(object):
         data = scio.loadmat(self.DATA_PATH)
         input = torch.tensor(data["input"], dtype=torch.float)
         output = torch.tensor(data["output"], dtype=torch.float)
-        logger.info(input.shape, output.shape)
+        logger.info(f"input.shape: {input.shape}")
+        logger.info(f"output.shape: {output.shape}")
         x_train = input[: self.ntrain, ::r1][:, :s1].reshape(self.ntrain, s1, 1).repeat(1, 1, s2)
         x_train = x_train.reshape(self.ntrain, -1, 1)
         y_train = output[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
@@ -86,7 +87,8 @@ class plas(object):
         x_test = x_test.reshape(self.ntest, -1, 1)
         y_test = output[-self.ntest :, ::r1, ::r2][:, :s1, :s2]
         y_test = y_test.reshape(self.ntest, -1, self.T_out * self.out_dim)
-        logger.info(x_train.shape, y_train.shape)
+        logger.info(f"x_train.shape: {x_train.shape}, y_train.shape: {y_train.shape}")
+        logger.info(f"x_test.shape: {x_test.shape}, y_test.shape: {y_test.shape}")
 
         # Use appropriate normalizer based on norm_type
         if self.norm_type == "UnitTransformer":
@@ -163,8 +165,9 @@ class elas(object):
         test_s = input_s[-self.ntest :, :, None]
         train_xy = input_xy[: self.ntrain]
         test_xy = input_xy[-self.ntest :]
-
-        logger.info(input_s.shape, input_xy.shape)
+        
+        logger.info(f"train_s.shape: {train_s.shape}, test_s.shape: {test_s.shape}")
+        logger.info(f"train_xy.shape: {train_xy.shape}, test_xy.shape: {test_xy.shape}")
 
         if self.normalize:
             # Use appropriate normalizer based on norm_type
@@ -219,7 +222,8 @@ class pipe(object):
 
         output = np.load(self.OUTPUT_Sigma)[:, 0]
         output = torch.tensor(output, dtype=torch.float)
-        logger.info(input.shape, output.shape)
+
+        logger.info(f"input.shape: {input.shape}, output.shape: {output.shape}")
 
         x_train = input[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
         y_train = output[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
@@ -289,7 +293,7 @@ class airfoil(object):
 
         output = np.load(self.OUTPUT_Sigma)[:, 4]
         output = torch.tensor(output, dtype=torch.float)
-        logger.info(input.shape, output.shape)
+        logger.info(f"input.shape: {input.shape}, output.shape: {output.shape}")
 
         x_train = input[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
         y_train = output[: self.ntrain, ::r1, ::r2][:, :s1, :s2]
