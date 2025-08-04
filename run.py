@@ -18,7 +18,7 @@ parser.add_argument("--gpu", type=str, default="0", help="GPU index to use")
 parser.add_argument("--max_grad_norm", type=float, default=None, help="make the training stable")
 parser.add_argument("--derivloss", type=bool, default=False, help="adopt the spatial derivate as regularization")
 parser.add_argument(
-    "--teacher_forcing", type=int, default=0, help="adopt teacher forcing in autoregressive to speed up convergence"
+    "--teacher_forcing", type=int, default=1, help="adopt teacher forcing in autoregressive to speed up convergence"
 )
 parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizer type, select from Adam, AdamW")
 parser.add_argument(
@@ -98,14 +98,14 @@ parser.add_argument(
     "--decom_ffno_loss_weights",
     type=float,
     nargs="+",
-    default=[1.0, 1.0, 1.0, 1.0],
+    default=[1.0, 1.0, 1.0],
     help="loss weights for decom_ffno [data_loss_weight, res_loss_weight, mi_loss_weight, club_loss_weight]",
 )
 parser.add_argument(
     "--decom_ffno_loss_active",
     type=bool,
     nargs="+",
-    default=[True, True, True, True],
+    default=[True, True, True],
     help="whether to activate each loss for decom_ffno [data_loss_active, res_loss_active, mi_loss_active, club_loss_active]",
 )
 
@@ -115,13 +115,15 @@ parser.add_argument("--eval", type=int, default=0, help="evaluation or not")
 parser.add_argument("--save_name", type=str, default="Transolver_check", help="name of folders")
 parser.add_argument("--vis_num", type=int, default=10, help="number of visualization cases")
 parser.add_argument("--vis_bound", type=int, nargs="+", default=None, help="size of region for visualization, in list")
+parser.add_argument("--log", type=str, default="log")
 
 args = parser.parse_args()
 eval = args.eval
 save_name = args.save_name
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-_, save_name = setup_logger(save_name, log_dir=f"./log/{args.model}/cuda_{args.gpu}/")
-args.save_name = save_name
+_, save_name = setup_logger(save_name, log_dir=f"./{args.log}/{args.model}/cuda_{args.gpu}/")
+if not eval:
+    args.save_name = save_name
 logger = logging.getLogger(__name__)
 
 logger.info("Arguments:")

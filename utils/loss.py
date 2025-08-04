@@ -197,26 +197,24 @@ class MultiMetricLoss(object):
         """初始化多任务权重和状态"""
         # [data_loss_weight, res_loss_weight, mi_loss_weight, club_loss_weight]
         # [data_loss_active, res_loss_active, mi_loss_active, club_loss_active]
-        decom_ffno_loss_weights = getattr(self.args, 'decom_ffno_loss_weights', [1.0, 1.0, 1.0, 1.0])
-        decom_ffno_loss_active = getattr(self.args, 'decom_ffno_loss_active', [True, True, True, True])
+        decom_ffno_loss_weights = getattr(self.args, 'decom_ffno_loss_weights', [1.0, 1.0, 1.0])
+        decom_ffno_loss_active = getattr(self.args, 'decom_ffno_loss_active', [True, True, True])
         
-        if len(decom_ffno_loss_weights) != 4:
-            logger.warning(f"decom_ffno_loss_weights length is {len(decom_ffno_loss_weights)}, expected 4. Using defaults.")
-            decom_ffno_loss_weights = [1.0, 1.0, 1.0, 1.0]
+        if len(decom_ffno_loss_weights) != 3:
+            logger.warning(f"decom_ffno_loss_weights length is {len(decom_ffno_loss_weights)}, expected 3. Using defaults.")
+            decom_ffno_loss_weights = [1.0, 1.0, 1.0]
         
-        if len(decom_ffno_loss_active) != 4:
-            logger.warning(f"decom_ffno_loss_active length is {len(decom_ffno_loss_active)}, expected 4. Using defaults.")
-            decom_ffno_loss_active = [True, True, True, True]
+        if len(decom_ffno_loss_active) != 3:
+            logger.warning(f"decom_ffno_loss_active length is {len(decom_ffno_loss_active)}, expected 3. Using defaults.")
+            decom_ffno_loss_active = [True, True, True]
         
         self.data_weight = decom_ffno_loss_weights[0]
         self.res_weight = decom_ffno_loss_weights[1]
         self.mi_weight = decom_ffno_loss_weights[2]
-        self.club_weight = decom_ffno_loss_weights[3]
         
         self.data_loss_active = decom_ffno_loss_active[0]
         self.res_loss_active = decom_ffno_loss_active[1]
         self.mi_loss_active = decom_ffno_loss_active[2]
-        self.club_loss_active = decom_ffno_loss_active[3]
         
         self.dwa_alpha = getattr(self.args, 'dwa_alpha', None)
         self.dwa_temperature = getattr(self.args, 'dwa_temperature', 2.0)
@@ -225,15 +223,14 @@ class MultiMetricLoss(object):
             self.data_loss_active,
             self.res_loss_active, 
             self.mi_loss_active,
-            self.club_loss_active
         ]
         self.num_active_tasks = sum(self.active_tasks)
         
         logger.info(f"Active tasks: {self.active_tasks}, Number of active tasks: {self.num_active_tasks}")
-        logger.info(f"Initial loss weights: data={self.data_weight}, res={self.res_weight}, mi={self.mi_weight}, club={self.club_weight}")
+        logger.info(f"Initial loss weights: data={self.data_weight}, res={self.res_weight}, mi={self.mi_weight}")
         
         if self.use_dwa and self.num_active_tasks > 1:
-            initial_weights = [self.data_weight, self.res_weight, self.mi_weight, self.club_weight]
+            initial_weights = [self.data_weight, self.res_weight, self.mi_weight]
             self.dwa = DynamicWeightAveraging(initial_weights=initial_weights, temperature=self.dwa_temperature, alpha=self.dwa_alpha)
             logger.info(f"DWA initialized with weights: {initial_weights}")
 
@@ -270,7 +267,7 @@ class MultiMetricLoss(object):
         
         return metrics
     
-    def compute_multitask_loss(self, im, y_true, res_loss, mi_loss, club_loss):
+    def compute_multitask_loss(self, im, y_true, res_loss, mi_loss):
         """
         计算多任务损失
         Args:
@@ -278,14 +275,13 @@ class MultiMetricLoss(object):
             y_true: 真实值
             res_loss: 残差损失
             mi_loss: 互信息损失  
-            club_loss: CLUB损失
         Returns:
             total_loss, loss_dict, metrics_dict
         """
         data_loss = self.compute_data_loss(im, y_true)
         
-        all_losses = [data_loss, res_loss, mi_loss, club_loss]
-        loss_names = ['data', 'res', 'mi', 'club']
+        all_losses = [data_loss, res_loss, mi_loss]
+        loss_names = ['data', 'res', 'mi']
 
         active_losses = []
         active_names = []
@@ -310,9 +306,9 @@ class MultiMetricLoss(object):
 
             final_weights = [updated_weights[i] for i in active_indices]
             
-            logger.debug(f"DWA updated weights: data={self.data_weight:.4f}, res={self.res_weight:.4f}, mi={self.mi_weight:.4f}, club={self.club_weight:.4f}")
+            logger.debug(f"DWA updated weights: data={self.data_weight:.4f}, res={self.res_weight:.4f}, mi={self.mi_weight:.4f}")
         else:
-            all_weights = [self.data_weight, self.res_weight, self.mi_weight, self.club_weight]
+            all_weights = [self.data_weight, self.res_weight, self.mi_weight]
             final_weights = [torch.tensor(all_weights[i]).to(data_loss.device) for i in active_indices]
         
         weighted_losses = [w * loss for w, loss in zip(final_weights, active_losses)]
@@ -323,27 +319,24 @@ class MultiMetricLoss(object):
             'data': data_loss,
             'res': res_loss,
             'mi': mi_loss,
-            'club': club_loss,
             'data_loss_type': self.loss_type,
             'active_losses': {name: loss for name, loss in zip(active_names, active_losses)},
             'weights': {
                 'data': self.data_weight if self.data_loss_active else 0.0,
                 'res': self.res_weight if self.res_loss_active else 0.0,
                 'mi': self.mi_weight if self.mi_loss_active else 0.0,
-                'club': self.club_weight if self.club_loss_active else 0.0
             },
             'active_status': {
                 'data': self.data_loss_active,
                 'res': self.res_loss_active,
                 'mi': self.mi_loss_active,
-                'club': self.club_loss_active
             }
         }
 
         logger.debug(f"Loss computation details:")
         logger.debug(f"  Total Loss: {total_loss.item():.6f}")
-        logger.debug(f"  Individual losses - data: {data_loss.item():.6f}, res: {res_loss.item():.6f}, mi: {mi_loss.item():.6f}, club: {club_loss.item():.6f}")
-        logger.debug(f"  Current weights - data: {self.data_weight:.4f}, res: {self.res_weight:.4f}, mi: {self.mi_weight:.4f}, club: {self.club_weight:.4f}")
+        logger.debug(f"  Individual losses - data: {data_loss.item():.6f}, res: {res_loss.item():.6f}, mi: {mi_loss.item():.6f}")
+        logger.debug(f"  Current weights - data: {self.data_weight:.4f}, res: {self.res_weight:.4f}, mi: {self.mi_weight:.4f}")
         
         metrics_dict = self.compute_data_metrics(im, y_true)
         
@@ -361,15 +354,15 @@ class MultiMetricLoss(object):
         统一的调用接口
         
         单任务模式: loss_fn(y_pred, y_true, return_all_metrics=True)
-        多任务模式: loss_fn(im, y_true, res_loss, mi_loss, club_loss, return_all_metrics=True)
+        多任务模式: loss_fn(im, y_true, res_loss, mi_loss, return_all_metrics=True)
         """
         if self.is_multitask:
-            if len(args) != 5:
-                raise ValueError("Multitask mode requires 5 arguments: (im, y_true, res_loss, mi_loss, club_loss)")
+            if len(args) != 4:
+                raise ValueError("Multitask mode requires 4 arguments: (im, y_true, res_loss, mi_loss)")
             
-            im, y_true, res_loss, mi_loss, club_loss = args
+            im, y_true, res_loss, mi_loss = args
             total_loss, loss_dict, metrics_dict = self.compute_multitask_loss(
-                im, y_true, res_loss, mi_loss, club_loss
+                im, y_true, res_loss, mi_loss
             )
             
             if return_all_metrics:
