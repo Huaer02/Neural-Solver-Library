@@ -89,25 +89,41 @@ parser.add_argument(
 parser.add_argument("--mwt_k", type=int, default=3, help="number of wavelet basis functions for MWT")
 
 ## Decom_ffno specific configuration
-parser.add_argument("--use_multitask", type=bool, default=False, help="whether to use multitask learning for decom_ffno")
-parser.add_argument("--use_dwa", type=bool, default=False, help="whether to use dynamic weighted averaging for decom_ffno")
-parser.add_argument("--dwa_temperature", type=float, default=2.0, help="temperature parameter for dynamic weighted averaging")
+
+## Loss
+parser.add_argument(
+    "--use_multitask", type=bool, default=False, help="whether to use multitask learning for decom_ffno"
+)
+
+parser.add_argument(
+    "--use_dwa", type=bool, default=False, help="whether to use dynamic weighted averaging for decom_ffno"
+)
+parser.add_argument(
+    "--dwa_temperature", type=float, default=2.0, help="temperature parameter for dynamic weighted averaging"
+)
 parser.add_argument("--dwa_alpha", type=float, default=None, help="smoothing factor for dynamic weighted averaging")
 parser.add_argument("--loss_type", type=str, default="l2", help="loss type for decom_ffno")
 parser.add_argument(
-    "--decom_ffno_loss_weights",
+    "--loss_weights",
     type=float,
     nargs="+",
     default=[1.0, 1.0, 1.0],
-    help="loss weights for decom_ffno [data_loss_weight, res_loss_weight, mi_loss_weight, club_loss_weight]",
+    help="loss weights for decom_ffno [data_loss_weight, res_loss_weight, ortho_loss_weight]",
 )
 parser.add_argument(
-    "--decom_ffno_loss_active",
+    "--loss_active",
     type=bool,
     nargs="+",
     default=[True, True, True],
-    help="whether to activate each loss for decom_ffno [data_loss_active, res_loss_active, mi_loss_active, club_loss_active]",
+    help="whether to activate each loss for decom_ffno [data_loss_active, res_loss_active, ortho_loss_active]",
 )
+parser.add_argument(
+    "--orthogonal_loss_method",
+    type=str,
+    default="gram_matrix",
+    help="method for orthogonal loss, select from [gram_matrix, frobenius, canonical_correlation, cosine_similarity, mi]",
+)
+parser.add_argument("--use_weight_fusion", type=bool, default=True, help="whether to use weight fusion for decom_ffno")
 
 
 ## eval

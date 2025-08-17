@@ -6,6 +6,7 @@ from exp.exp_basic import Exp_Basic
 from models.model_factory import get_model
 from data_provider.data_factory import get_data
 from utils.loss import L2Loss, MultiMetricLoss
+from utils.model_saver import ModelSaver
 import matplotlib.pyplot as plt
 from utils.visual import visual
 import numpy as np
@@ -14,23 +15,49 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+
 class Exp_Dynamic_Autoregressive(Exp_Basic):
     def __init__(self, args):
         super(Exp_Dynamic_Autoregressive, self).__init__(args)
 
-        data_loss_type = getattr(args, 'data_loss_type', 'l2')
-        
-        is_multitask = hasattr(args, 'use_multitask') and args.use_multitask
-        
+        data_loss_type = getattr(args, "data_loss_type", "l2")
+        self.use_multitask = getattr(args, "use_multitask", False)
+
         self.metric_calculator = MultiMetricLoss(
             loss_type=data_loss_type,
-            is_multitask=is_multitask,
-            size_average=False, 
+            is_multitask=self.use_multitask,
+            size_average=False,
             args=args,
-            use_dwa=getattr(args, 'use_dwa', True) if is_multitask else False
+            use_dwa=getattr(args, "use_dwa", True) if self.use_multitask else False,
+        )
+        
+        # 初始化ModelSaver，监控测试集L2损失
+        self.model_saver = ModelSaver(
+            save_dir="./checkpoints",
+            save_name=self.args.save_name,
+            monitor_metric="test_l2",
+            mode="min",
+            patience=float('inf'),  # 不使用早停机制
+            verbose=True
         )
 
-    def vali(self):
+    def vali(self, use_best_model=False):
+        """
+        验证方法
+        Args:
+            use_best_model: 是否使用最佳模型进行验证
+        """
+        if use_best_model:
+            try:
+                # 保存当前模型状态
+                current_state = self.model.state_dict().copy()
+                # 加载最佳模型
+                self.model_saver.load_best_model(self.model, map_location="cuda")
+                logger.info("使用最佳模型进行验证")
+            except FileNotFoundError:
+                logger.warning("未找到最佳模型，使用当前模型进行验证")
+                use_best_model = False
+        
         vali_start_time = time.time()
         test_l2_full = 0
         test_metrics_full = {"mae": 0, "mape": 0, "rmse": 0}
@@ -46,7 +73,7 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                     if self.args.fun_dim == 0:
                         fx = None
                     im = self.model(x, fx=fx)
-                    if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
+                    if self.use_multitask:
                         _, final_pred, _ = im
                         im = final_pred
                     if t == 0:
@@ -65,10 +92,16 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
         all_targets = torch.cat(all_targets, dim=0)
 
         test_metrics_full = self.metric_calculator.compute_data_metrics(all_preds, all_targets)
-        test_l2_full = self.metric_calculator.compute_data_loss_only(all_preds, all_targets) / len(self.test_loader.dataset)
+        test_l2_full = self.metric_calculator.compute_data_loss_only(all_preds, all_targets) / len(
+            self.test_loader.dataset
+        )
 
         vali_end_time = time.time()
         vali_time = vali_end_time - vali_start_time
+
+        # 如果使用了最佳模型进行验证，恢复原来的模型状态
+        if use_best_model:
+            self.model.load_state_dict(current_state)
 
         return test_l2_full, test_metrics_full, vali_time
 
@@ -117,20 +150,22 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                         fx = None
                     im = self.model(x, fx=fx)
 
-                    if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
-                        # im -> (res_out, final_pred, mi_loss)
-                        res_out, final_pred, mi_loss = im
+                    if self.use_multitask:
+                        # im -> (res_out, final_pred, orthogonal_loss)
+                        res_out, final_pred, orthogonal_loss = im
                         res_loss = torch.mean(torch.abs(res_out))
                         im = final_pred
 
                         step_loss, loss_dict, step_metrics = self.metric_calculator(
-                            im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1),
-                            res_loss, mi_loss, return_all_metrics=True
+                            im.reshape(x.shape[0], -1),
+                            y.reshape(x.shape[0], -1),
+                            res_loss,
+                            orthogonal_loss,
+                            return_all_metrics=True,
                         )
                     else:
                         step_loss, step_metrics = self.metric_calculator(
-                            im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1), 
-                            return_all_metrics=True
+                            im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1), return_all_metrics=True
                         )
 
                     loss += step_loss
@@ -174,7 +209,7 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
             train_metrics_avg = {
                 key: value / (total_samples * float(self.args.T_out)) for key, value in train_metrics_sum.items()
             }
-            train_metrics_avg['l2'] /= (total_samples / float(self.args.T_out))
+            train_metrics_avg["l2"] /= total_samples / float(self.args.T_out)
 
             epoch_train_time = time.time() - epoch_start_time
 
@@ -187,9 +222,7 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                     ep, train_loss_step, train_loss_step, train_loss_full, train_loss_full
                 )
             )
-            logger.info(
-                "         Train L2: {:.5e} ({:.8f})".format(train_metrics_avg['l2'], train_metrics_avg['l2'])
-            )
+            logger.info("         Train L2: {:.5e} ({:.8f})".format(train_metrics_avg["l2"], train_metrics_avg["l2"]))
             logger.info(
                 "         Train MAE: {:.5e} ({:.8f})".format(train_metrics_avg["mae"], train_metrics_avg["mae"])
             )
@@ -217,23 +250,35 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
             )
             logger.info("-" * 80)
 
-            if ep % 100 == 0:
-                if not os.path.exists("./checkpoints"):
-                    os.makedirs("./checkpoints")
-                logger.info("save models")
-                torch.save(self.model.state_dict(), os.path.join("./checkpoints", self.args.save_name + ".pt"))
+            # 使用ModelSaver管理模型保存
+            metrics_dict = {
+                "test_l2": test_loss_full,
+                "test_mae": test_metrics_full["mae"],
+                "test_mape": test_metrics_full["mape"],
+                "test_rmse": test_metrics_full["rmse"],
+                "train_l2": train_metrics_avg["l2"],
+                "train_mae": train_metrics_avg["mae"],
+                "train_mape": train_metrics_avg["mape"],
+                "train_rmse": train_metrics_avg["rmse"]
+            }
+            
+            # 更新最佳模型
+            is_best = self.model_saver.update(self.model, metrics_dict, ep)
 
         total_train_time = time.time() - train_start_time
-
-        if not os.path.exists("./checkpoints"):
-            os.makedirs("./checkpoints")
-        logger.info("final save models")
-        torch.save(self.model.state_dict(), os.path.join("./checkpoints", self.args.save_name + ".pt"))
 
         logger.info("=" * 80)
         logger.info(f"Training completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info(f"Total training time: {total_train_time:.2f}s ({total_train_time/3600:.2f}h)")
         logger.info(f"Average time per epoch: {total_train_time/self.args.epochs:.2f}s")
+        
+        # 打印最佳模型信息
+        best_summary = self.model_saver.get_summary()
+        logger.info("-" * 40)
+        logger.info("Best Model Summary:")
+        logger.info(f"Best {best_summary['monitor_metric']}: {best_summary['best_score']:.6f}")
+        logger.info(f"Best epoch: {best_summary['best_epoch']}")
+        logger.info(f"Best model path: {best_summary['best_model_path']}")
         logger.info("=" * 80)
 
     def test(self):
@@ -243,7 +288,20 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
 
         test_start_time = time.time()
 
-        self.model.load_state_dict(torch.load("./checkpoints/" + self.args.save_name + ".pt"))
+        # 加载最佳模型进行测试
+        try:
+            self.model_saver.load_best_model(self.model, map_location="cuda")
+            logger.info("使用最佳模型进行测试")
+        except FileNotFoundError:
+            # 如果没有最佳模型，尝试加载传统命名的模型
+            traditional_path = "./checkpoints/" + self.args.save_name + ".pt"
+            if os.path.exists(traditional_path):
+                self.model.load_state_dict(torch.load(traditional_path))
+                logger.info(f"使用传统保存的模型进行测试: {traditional_path}")
+            else:
+                logger.error("未找到可用的模型文件进行测试")
+                return
+        
         self.model.eval()
         if not os.path.exists("./results/" + self.args.save_name + "/"):
             os.makedirs("./results/" + self.args.save_name + "/")
@@ -264,10 +322,10 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                     if self.args.fun_dim == 0:
                         fx = None
                     im = self.model(x, fx=fx)
-                    if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
+                    if self.use_multitask:
                         _, final_pred, _ = im
                         im = final_pred
-                    fx = torch.cat((fx[..., self.args.out_dim :], im), dim=-1)                    
+                    fx = torch.cat((fx[..., self.args.out_dim :], im), dim=-1)
 
                     if t == 0:
                         pred = im
