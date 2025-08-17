@@ -74,7 +74,7 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                         fx = None
                     im = self.model(x, fx=fx)
                     if self.use_multitask:
-                        _, final_pred, _ = im
+                        _, final_pred, _, _ = im
                         im = final_pred
                     if t == 0:
                         pred = im
@@ -151,22 +151,16 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                     im = self.model(x, fx=fx)
 
                     if self.use_multitask:
-                        # im -> (res_out, final_pred, orthogonal_loss)
-                        res_out, final_pred, orthogonal_loss = im
+                        # im -> (res_out, final_pred, orthogonal_loss, residual_mi_loss)
+                        res_out, final_pred, orthogonal_loss, residual_mi_loss = im
                         res_loss = torch.mean(torch.abs(res_out))
                         im = final_pred
 
-                        step_loss, loss_dict, step_metrics = self.metric_calculator(
-                            im.reshape(x.shape[0], -1),
-                            y.reshape(x.shape[0], -1),
-                            res_loss,
-                            orthogonal_loss,
-                            return_all_metrics=True,
+                        step_loss, _, step_metrics = self.metric_calculator(
+                            im, y, res_loss, orthogonal_loss, residual_mi_loss
                         )
                     else:
-                        step_loss, step_metrics = self.metric_calculator(
-                            im.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1), return_all_metrics=True
-                        )
+                        step_loss, step_metrics = self.metric_calculator(im, y)
 
                     loss += step_loss
 
@@ -323,7 +317,7 @@ class Exp_Dynamic_Autoregressive(Exp_Basic):
                         fx = None
                     im = self.model(x, fx=fx)
                     if self.use_multitask:
-                        _, final_pred, _ = im
+                        _, final_pred, _, _ = im
                         im = final_pred
                     fx = torch.cat((fx[..., self.args.out_dim :], im), dim=-1)
 

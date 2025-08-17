@@ -15,7 +15,7 @@ parser.add_argument("--weight_decay", type=float, default=1e-5, help="optimizer 
 parser.add_argument("--pct_start", type=float, default=0.3, help="oncycle lr schedule")
 parser.add_argument("--batch-size", type=int, default=8, help="batch size")
 parser.add_argument("--gpu", type=str, default="0", help="GPU index to use")
-parser.add_argument("--max_grad_norm", type=float, default=None, help="make the training stable")
+parser.add_argument("--max_grad_norm", type=float, default=1.0, help="make the training stable")
 parser.add_argument("--derivloss", type=bool, default=False, help="adopt the spatial derivate as regularization")
 parser.add_argument(
     "--teacher_forcing", type=int, default=1, help="adopt teacher forcing in autoregressive to speed up convergence"
@@ -107,15 +107,15 @@ parser.add_argument(
     "--loss_weights",
     type=float,
     nargs="+",
-    default=[1.0, 1.0, 1.0],
-    help="loss weights for decom_ffno [data_loss_weight, res_loss_weight, ortho_loss_weight]",
+    default=[1.0, 1.0, 1.0, 1.0],
+    help="loss weights for decom_ffno [data_loss_weight, res_loss_weight, ortho_loss_weight, residual_mi_loss_weight]",
 )
 parser.add_argument(
     "--loss_active",
     type=bool,
     nargs="+",
-    default=[True, True, True],
-    help="whether to activate each loss for decom_ffno [data_loss_active, res_loss_active, ortho_loss_active]",
+    default=[True, True, True, True],
+    help="whether to activate each loss for decom_ffno [data_loss_active, res_loss_active, ortho_loss_active, residual_mi_loss_active]",
 )
 parser.add_argument(
     "--orthogonal_loss_method",
@@ -124,6 +124,39 @@ parser.add_argument(
     help="method for orthogonal loss, select from [gram_matrix, frobenius, canonical_correlation, cosine_similarity, mi]",
 )
 parser.add_argument("--use_weight_fusion", type=bool, default=True, help="whether to use weight fusion for decom_ffno")
+
+## OrthoSolver specific configuration
+# parser.add_argument("--use_residual_mi", type=bool, default=, help="whether to use residual flow mutual information minimization")
+parser.add_argument(
+    "--lambda_residual_mi", type=float, default=0.1, help="weight for residual flow mutual information loss"
+)
+parser.add_argument(
+    "--residual_mi_hidden_size",
+    type=int,
+    default=None,
+    help="hidden size for residual MI estimator (default: same as n_hidden)",
+)
+parser.add_argument(
+    "--residual_mi_estimator_type",
+    type=str,
+    default="CLUBSample",
+    help="type of MI estimator for residual flows: CLUBMean or CLUBSample",
+)
+parser.add_argument(
+    "--residual_club_lr", type=float, default=0.1, help="learning rate for residual flow CLUB optimizer"
+)
+parser.add_argument(
+    "--residual_club_train_steps",
+    type=int,
+    default=5,
+    help="number of training steps for residual flow CLUB per forward pass",
+)
+parser.add_argument(
+    "--residual_club_sample_ratio",
+    type=float,
+    default=0.1,
+    help="ratio of samples used for residual flow CLUB training",
+)
 
 
 ## eval

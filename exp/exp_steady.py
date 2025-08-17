@@ -113,7 +113,7 @@ class Exp_Steady(Exp_Basic):
                 
                 # 处理多任务输出
                 if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
-                    res_out, final_pred, mi_loss, club_loss = out
+                    res_out, final_pred, orthogonal_loss, residual_mi_loss = out
                     res_loss = torch.mean(torch.abs(res_out))
                     out = final_pred
                 
@@ -129,7 +129,7 @@ class Exp_Steady(Exp_Basic):
                 if hasattr(self.args, 'use_multitask') and self.args.use_multitask:
                     loss, loss_dict, step_metrics = self.metric_calculator(
                         out.reshape(x.shape[0], -1), y.reshape(x.shape[0], -1),
-                        res_loss, mi_loss, club_loss, return_all_metrics=True
+                        res_loss, orthogonal_loss, residual_mi_loss, return_all_metrics=True
                     )
                 else:
                     loss, step_metrics = self.metric_calculator(

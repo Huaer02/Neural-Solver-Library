@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from layers.OrthoSolver_layers import OrthoSolverBlockList
-from layers.mi_minimizer import MultiBranchMIMinimizer
+from layers.mi_minimizer import MultiBranchMIMinimizer, ResidualFlowMIMinimizer
 from layers.Basic import MLP
 from layers.Embedding import timestep_embedding, unified_pos_embedding
 from utils.OrthoLoss import optimal_orthogonal_loss
@@ -97,6 +97,16 @@ class Model(nn.Module):
         if hasattr(args, "lambda_mi"):
             self.lambda_orthogonal = getattr(args, "lambda_mi", 0.1)
 
+        # Residual flow mutual information minimization configuration
+
+        self.use_residual_mi = args.loss_active[3]
+        self.lambda_residual_mi = getattr(args, "lambda_residual_mi", 0.1)
+        self.residual_mi_hidden_size = getattr(args, "residual_mi_hidden_size", self.width)
+        self.residual_mi_estimator_type = getattr(args, "residual_mi_estimator_type", "CLUBSample")
+        self.residual_club_lr = getattr(args, "residual_club_lr", 0.1)
+        self.residual_club_train_steps = getattr(args, "residual_club_train_steps", 5)
+        self.residual_club_sample_ratio = getattr(args, "residual_club_sample_ratio", 0.1)
+
         # OrthoSolver Blocks - using the dimension-specific block class
         self.fno_blocks = nn.ModuleList()
         for i in range(self.num_blocks):
@@ -152,6 +162,18 @@ class Model(nn.Module):
                     f"Supported methods: 'mi', 'gram_matrix', 'frobenius', 'canonical_correlation', 'cosine_similarity'"
                 )
 
+        # Initialize residual flow mutual information minimizer
+        if self.use_residual_mi:
+            self.residual_mi_minimizer = ResidualFlowMIMinimizer(
+                signal_dim=self.width,
+                num_blocks=self.num_blocks,
+                hidden_size=self.residual_mi_hidden_size,
+                estimator_type=self.residual_mi_estimator_type,
+            )
+            self.residual_club_optimizer = torch.optim.Adam(
+                self.residual_mi_minimizer.parameters(), lr=self.residual_club_lr
+            )
+
         if self.use_weight_fusion:
             self.weights = nn.ParameterList()
             for i in range(self.num_blocks):
@@ -199,6 +221,40 @@ class Model(nn.Module):
 
             self.mi_minimizer.eval()
 
+    def _train_residual_club_estimators(self, residual_flows):
+        """训练残差流CLUB估计器"""
+        if not hasattr(self, "residual_club_optimizer") or not self.use_residual_mi:
+            return
+
+        # residual_flows: list of [batch_size, *space_resolution, feature_dim]
+        reshaped_flows = []
+        for flow in residual_flows:
+            # Reshape to [batch_size * num_spatial_points, feature_dim]
+            batch_size = flow.shape[0]
+            num_spatial = np.prod(flow.shape[1:-1])
+            feature_dim = flow.shape[-1]
+
+            reshaped = flow.reshape(batch_size * num_spatial, feature_dim)
+            reshaped_flows.append(reshaped)
+
+        if len(reshaped_flows) > 0:
+            total_samples = reshaped_flows[0].shape[0]
+            if self.residual_club_sample_ratio < 1.0:
+                num_samples = max(1, int(total_samples * self.residual_club_sample_ratio))
+                random_indices = np.random.choice(total_samples, num_samples, replace=False)
+                sampled_flows = [flow[random_indices].detach() for flow in reshaped_flows]
+            else:
+                sampled_flows = [flow.detach() for flow in reshaped_flows]
+
+            self.residual_mi_minimizer.train()
+            for _ in range(self.residual_club_train_steps):
+                self.residual_club_optimizer.zero_grad()
+                club_loss = self.residual_mi_minimizer.learning_loss(sampled_flows)
+                club_loss.backward()
+                self.residual_club_optimizer.step()
+
+            self.residual_mi_minimizer.eval()
+
     def _compute_orthogonal_loss(self, all_basic_outputs):
         if not self.use_orthogonal_loss or len(all_basic_outputs) < 2:
             return torch.tensor(0.0, device=all_basic_outputs[0].device)
@@ -233,6 +289,30 @@ class Model(nn.Module):
             )
 
         return orthogonal_loss
+
+    def _compute_residual_mi_loss(self, residual_flows):
+        """计算残差流之间的互信息损失"""
+        if not self.use_residual_mi or len(residual_flows) < 2:
+            return torch.tensor(0.0, device=residual_flows[0].device)
+
+        # 训练CLUB估计器
+        if self.training:
+            self._train_residual_club_estimators(residual_flows)
+
+        # 重塑残差流数据
+        reshaped_flows = []
+        for flow in residual_flows:
+            batch_size = flow.shape[0]
+            num_spatial = np.prod(flow.shape[1:-1])
+            feature_dim = flow.shape[-1]
+            reshaped = flow.reshape(batch_size * num_spatial, feature_dim)
+            reshaped_flows.append(reshaped)
+
+        # 计算相邻残差流之间的互信息
+        mi_estimate, _ = self.residual_mi_minimizer(reshaped_flows)
+        residual_mi_loss = self.lambda_residual_mi * mi_estimate
+
+        return residual_mi_loss
 
     def forward(self, x, fx=None, T=None, **kwargs):
         """
@@ -273,6 +353,11 @@ class Model(nn.Module):
 
         cur_x = processed_input
         all_basic_outputs = []
+        all_residual_flows = []  # 收集所有残差流: X0, X1, X2, ...
+
+        # 收集初始残差流 X0
+        if self.use_residual_mi:
+            all_residual_flows.append(cur_x.clone())
 
         # Weight fusion preparation
         if self.use_weight_fusion:
@@ -301,11 +386,18 @@ class Model(nn.Module):
             if self.use_residual:
                 cur_x = cur_x - block_res_out
 
+                # 收集更新后的残差流 X_{i+1}
+                if self.use_residual_mi:
+                    all_residual_flows.append(cur_x.clone())
+
         # Final residual output is the final cur_x (after all residual subtractions)
         final_res_out = cur_x if self.use_residual else processed_input
 
         # Compute orthogonal losses using basic_out for orthogonalization
         orthogonal_loss = self._compute_orthogonal_loss(all_basic_outputs)
+
+        # Compute residual flow mutual information loss
+        residual_mi_loss = self._compute_residual_mi_loss(all_residual_flows)
 
         # Reshape outputs for compatibility
         final_pred = all_pred.reshape(batch_size, N, -1)
@@ -313,6 +405,7 @@ class Model(nn.Module):
 
         # Return based on task type
         if self.use_multitask:
-            return final_res_out, final_pred, orthogonal_loss
+            # 分别返回orthogonal_loss和residual_mi_loss
+            return final_res_out, final_pred, orthogonal_loss, residual_mi_loss
         else:
             return final_pred
