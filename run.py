@@ -157,6 +157,12 @@ parser.add_argument(
     default=0.1,
     help="ratio of samples used for residual flow CLUB training",
 )
+parser.add_argument(
+    "--coefficient_only",
+    type=bool,
+    default=False,
+    help="The Solution Operator use [coefficient] only or [basic + coefficient]",
+)
 
 
 ## eval
@@ -166,11 +172,13 @@ parser.add_argument("--vis_num", type=int, default=10, help="number of visualiza
 parser.add_argument("--vis_bound", type=int, nargs="+", default=None, help="size of region for visualization, in list")
 parser.add_argument("--log", type=str, default="log")
 
+parser.add_argument("--debug", type=bool, default=False)
+
 args = parser.parse_args()
 eval = args.eval
 save_name = args.save_name
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-_, save_name = setup_logger(save_name, log_dir=f"./{args.log}/{args.model}/cuda_{args.gpu}/")
+_, save_name = setup_logger(save_name, log_dir=f"./{args.log}/{args.model}/cuda_{args.gpu}/", enable_debug=args.debug)
 if not eval:
     args.save_name = save_name
 logger = logging.getLogger(__name__)

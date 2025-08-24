@@ -100,7 +100,7 @@ class Model(nn.Module):
         # Residual flow mutual information minimization configuration
 
         self.use_residual_mi = args.loss_active[3]
-        self.lambda_residual_mi = getattr(args, "lambda_residual_mi", 0.1)
+        self.lambda_residual_mi = getattr(args, "lambda_residual_mi", 0.01)
         self.residual_mi_hidden_size = getattr(args, "residual_mi_hidden_size", self.width)
         self.residual_mi_estimator_type = getattr(args, "residual_mi_estimator_type", "CLUBSample")
         self.residual_club_lr = getattr(args, "residual_club_lr", 0.1)
@@ -140,11 +140,14 @@ class Model(nn.Module):
                 self.club_train_steps = getattr(args, "club_train_steps", 5)
                 self.club_sample_ratio = getattr(args, "club_sample_ratio", 0.1)
 
+                # 使用相同的MI损失缩放参数
+                mi_lambda_mi = getattr(args, "mi_lambda_mi", 0.01)
                 self.mi_minimizer = MultiBranchMIMinimizer(
                     signal_dim=self.width,
                     num_branches=self.num_blocks,
                     hidden_size=self.mi_hidden_size,
                     estimator_type=self.mi_estimator_type,
+                    mi_lambda_mi=mi_lambda_mi,
                 )
                 self.club_optimizer = torch.optim.Adam(self.mi_minimizer.parameters(), lr=self.club_lr)
             elif self.orthogonal_loss_method in [
@@ -169,6 +172,7 @@ class Model(nn.Module):
                 num_blocks=self.num_blocks,
                 hidden_size=self.residual_mi_hidden_size,
                 estimator_type=self.residual_mi_estimator_type,
+                mi_lambda_mi=self.lambda_residual_mi,
             )
             self.residual_club_optimizer = torch.optim.Adam(
                 self.residual_mi_minimizer.parameters(), lr=self.residual_club_lr

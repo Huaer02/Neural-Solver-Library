@@ -9,17 +9,19 @@ class MultiBranchMIMinimizer(nn.Module):
     用于最小化多个分支信号之间的互信息
     """
 
-    def __init__(self, signal_dim, num_branches, hidden_size=None, estimator_type="CLUBMean"):
+    def __init__(self, signal_dim, num_branches, hidden_size=None, estimator_type="CLUBMean", lambda_mi=0.01):
         """
         Args:
             signal_dim: 每个分支信号的维度
             num_branches: 分支数量
             hidden_size: CLUB估计器的隐藏层大小
             estimator_type: 'CLUBMean' 或 'CLUBSample'
+            lambda_mi: MI损失的缩放因子，用于控制数量级，默认0.01
         """
         super().__init__()
         self.num_branches = num_branches
         self.signal_dim = signal_dim
+        self.lambda_mi = lambda_mi
 
         # 为每对分支创建一个CLUB估计器
         self.estimators = nn.ModuleDict()
@@ -61,8 +63,10 @@ class MultiBranchMIMinimizer(nn.Module):
             for j in range(i + 1, self.num_branches):
                 key = f"branch_{i}_{j}"
                 mi_estimate = self.estimators[key](branch_signals[i], branch_signals[j])
-                mi_dict[key] = mi_estimate
-                total_mi += mi_estimate
+                # 直接在估计器输出时应用缩放，避免数量级过大
+                scaled_mi_estimate = mi_estimate * self.lambda_mi
+                mi_dict[key] = scaled_mi_estimate
+                total_mi += scaled_mi_estimate
 
         return total_mi, mi_dict
 
@@ -87,9 +91,9 @@ class AdaptiveMIMinimizer(nn.Module):
     可以动态调整不同分支对之间的权重
     """
 
-    def __init__(self, signal_dim, num_branches, hidden_size=None, estimator_type="CLUBMean"):
+    def __init__(self, signal_dim, num_branches, hidden_size=None, estimator_type="CLUBMean", lambda_mi=0.01):
         super().__init__()
-        self.mi_minimizer = MultiBranchMIMinimizer(signal_dim, num_branches, hidden_size, estimator_type)
+        self.mi_minimizer = MultiBranchMIMinimizer(signal_dim, num_branches, hidden_size, estimator_type, lambda_mi)
 
         # 为每对分支学习一个权重
         num_pairs = num_branches * (num_branches - 1) // 2
@@ -121,18 +125,20 @@ class ResidualFlowMIMinimizer(nn.Module):
     用于最小化相邻残差流之间的互信息，即X0和X1, X1和X2, X2和X3等
     """
 
-    def __init__(self, signal_dim, num_blocks, hidden_size=None, estimator_type="CLUBMean"):
+    def __init__(self, signal_dim, num_blocks, hidden_size=None, estimator_type="CLUBMean", lambda_mi=0.01):
         """
         Args:
             signal_dim: 每个残差流信号的维度
             num_blocks: 块数量（残差流数量为num_blocks+1）
             hidden_size: CLUB估计器的隐藏层大小
             estimator_type: 'CLUBMean' 或 'CLUBSample'
+            lambda_mi: MI损失的缩放因子，用于控制数量级，默认0.01
         """
         super().__init__()
         self.num_blocks = num_blocks
         self.num_flows = num_blocks + 1  # X0, X1, X2, ..., X_num_blocks
         self.signal_dim = signal_dim
+        self.lambda_mi = lambda_mi
 
         if estimator_type == "CLUBMean":
             EstimatorClass = CLUBMean
@@ -172,8 +178,10 @@ class ResidualFlowMIMinimizer(nn.Module):
         # 计算相邻残差流之间的互信息
         for i in range(self.num_flows - 1):
             mi_estimate = self.estimators[i](residual_flows[i], residual_flows[i + 1])
-            mi_list.append(mi_estimate)
-            total_mi += mi_estimate
+            # 直接在估计器输出时应用缩放，避免数量级过大
+            scaled_mi_estimate = mi_estimate * self.lambda_mi
+            mi_list.append(scaled_mi_estimate)
+            total_mi += scaled_mi_estimate
 
         return total_mi, mi_list
 

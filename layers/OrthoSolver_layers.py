@@ -2,11 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from layers.Basic import WNLinear, WNFeedForward, MLP
+from layers.Basic import WNLinear, WNFeedForward, MLP, PreNorm
 from layers.Decom_Layers import DecomConvList
+
 
 class SerialOrthoSolverBlock2D(nn.Module):
     """2D OrthoSolverBlock2D"""
+
     def __init__(
         self,
         modes,
@@ -31,7 +33,7 @@ class SerialOrthoSolverBlock2D(nn.Module):
         # input: X_i: [b, n1, n2,..., in_dim] -> [b, n1, n2,..., c]
         # Basic Operator: X_i: [b, n1, n2,..., c] -> B_i: [b, n1, n2,..., c]
         # Coefficient Operator: X_i: [b, n1, n2,..., c] -> C_i: [b, n1, n2,..., 1]
-        # Solution Operator: 
+        # Solution Operator:
         ##  Coefficient only: C_i: [b, n1, n2,..., 1] -> [b, n1, n2,..., 1]
         ##  Coefficient + Basic: B_i: [b, n1, n2,..., c] + C_i: [b, n1, n2,..., 1] -> \hat{C_i} :[b, n1, n2,..., 1]
 
@@ -50,7 +52,7 @@ class SerialOrthoSolverBlock2D(nn.Module):
         self.use_fork = use_fork
         self.coefficient_only = coefficient_only
         DecomSpectralConv2d = DecomConvList[2]
-        
+
         # Shared components
         self.forecast_ff = self.backcast_ff = None
         if share_fork:
@@ -67,7 +69,7 @@ class SerialOrthoSolverBlock2D(nn.Module):
                 param = nn.Parameter(weight)
                 nn.init.xavier_normal_(param, gain=gain)
                 self.fourier_weight.append(param)
-        
+
         # Basic Operators: X_i -> B_i
         self.basic_operators = nn.ModuleList([])
         for _ in range(n_layers):
@@ -93,12 +95,15 @@ class SerialOrthoSolverBlock2D(nn.Module):
         self.coefficient_operators = nn.ModuleList([])
         for _ in range(n_layers):
             self.coefficient_operators.append(
-                MLP(
-                    n_input=width,
-                    n_hidden=width * factor,
-                    n_layers=n_ff_layers,
-                    n_output=self.coefficient_dim,
-                    act='relu'
+                PreNorm(
+                    dim=width,
+                    fn=MLP(
+                        n_input=width,
+                        n_hidden=width * factor,
+                        n_layers=n_ff_layers,
+                        n_output=self.coefficient_dim,
+                        act="relu",
+                    ),
                 )
             )
 
@@ -125,10 +130,18 @@ class SerialOrthoSolverBlock2D(nn.Module):
             )
 
         # Final output layer for forecast: B_i * \hat{C_i} -> forecast
-        self.out = nn.Sequential(
-            WNLinear(self.width, self.width * factor, wnorm=ff_weight_norm),
-            nn.ReLU(),
-            WNLinear(self.width * factor, self.output_dim, wnorm=ff_weight_norm),
+        # self.out = nn.Sequential(
+        #     WNLinear(self.width, self.width * factor, wnorm=ff_weight_norm),
+        #     nn.ReLU(),
+        #     WNLinear(self.width * factor, self.output_dim, wnorm=ff_weight_norm),
+        # )
+        self.out = PreNorm(
+            dim=width,
+            fn=nn.Sequential(
+                WNLinear(self.width, self.width * factor, wnorm=ff_weight_norm),
+                nn.ReLU(),
+                WNLinear(self.width * factor, self.output_dim, wnorm=ff_weight_norm),
+            ),
         )
 
     def forward(self, x, grid=None, **kwargs):
@@ -138,15 +151,15 @@ class SerialOrthoSolverBlock2D(nn.Module):
         # Input projection: [b, n1, n2, in_dim] -> [b, n1, n2, c]
         x = self.in_proj(x)
         x = self.drop(x)
-        
+
         forecast = 0
         forecast_list = []
-        
+
         for i in range(self.n_layers):
             basic_operator = self.basic_operators[i]
             coefficient_operator = self.coefficient_operators[i]
             solution_operator = self.solution_operators[i]
-        
+
             # Basic Operator: X_i -> B_i [b, n1, n2, c]
             B_i, _ = basic_operator(x)  # Only use backcast output
 
@@ -187,8 +200,10 @@ class SerialOrthoSolverBlock2D(nn.Module):
 
         return forecast, res_out, basic_out
 
+
 class ParalleOrthoSolverBlock2D(nn.Module):
     """2D OrthoSolverBlock2D"""
+
     def __init__(
         self,
         modes,
@@ -213,7 +228,7 @@ class ParalleOrthoSolverBlock2D(nn.Module):
         # input: X_i: [b, n1, n2,..., in_dim] -> [b, n1, n2,..., c]
         # Basic Operator: X_i: [b, n1, n2,..., c] -> B_i: [b, n1, n2,..., c]
         # Coefficient Operator: X_i: [b, n1, n2,..., c] -> C_i: [b, n1, n2,..., 1]
-        # Solution Operator: 
+        # Solution Operator:
         ##  Coefficient only: C_i: [b, n1, n2,..., 1] -> [b, n1, n2,..., 1]
         ##  Coefficient + Basic: B_i: [b, n1, n2,..., c] + C_i: [b, n1, n2,..., 1] -> \hat{C_i} :[b, n1, n2,..., 1]
 
@@ -232,7 +247,7 @@ class ParalleOrthoSolverBlock2D(nn.Module):
         self.use_fork = use_fork
         self.coefficient_only = coefficient_only
         DecomSpectralConv2d = DecomConvList[2]
-        
+
         # Shared components
         self.forecast_ff = self.backcast_ff = None
         if share_fork:
@@ -249,7 +264,7 @@ class ParalleOrthoSolverBlock2D(nn.Module):
                 param = nn.Parameter(weight)
                 nn.init.xavier_normal_(param, gain=gain)
                 self.fourier_weight.append(param)
-        
+
         # Basic Operators: X_i -> B_i
         self.basic_operators = nn.ModuleList([])
         for _ in range(n_layers):
@@ -280,7 +295,7 @@ class ParalleOrthoSolverBlock2D(nn.Module):
                     n_hidden=width * factor,
                     n_layers=n_ff_layers,
                     n_output=width,  # Keep same dimension as input for residual connection
-                    act='relu'
+                    act="relu",
                 )
             )
 
@@ -292,7 +307,7 @@ class ParalleOrthoSolverBlock2D(nn.Module):
         for _ in range(n_layers):
             solution_input_dim = coefficient_dim if coefficient_only else (width + coefficient_dim)
             self.solution_operators.append(
-                    DecomSpectralConv2d(
+                DecomSpectralConv2d(
                     in_dim=solution_input_dim,
                     out_dim=coefficient_dim,
                     n_modes=modes,
@@ -323,19 +338,19 @@ class ParalleOrthoSolverBlock2D(nn.Module):
         # Input projection: [b, n1, n2, in_dim] -> [b, n1, n2, c]
         x = self.in_proj(x)
         x = self.drop(x)
-        
+
         # Initialize two separate residual chains
-        x_basic = x.clone()      # For basic operators
-        x_coeff = x.clone()      # For coefficient operators
+        x_basic = x.clone()  # For basic operators
+        x_coeff = x.clone()  # For coefficient operators
 
         forecast = 0
         forecast_list = []
-        
+
         # Process through layers with separate residual chains
         for i in range(self.n_layers):
             basic_operator = self.basic_operators[i]
             coefficient_operator = self.coefficient_operators[i]
-        
+
             # Basic Operator Chain: X_basic_i -> B_i with residual connection
             B_i, _ = basic_operator(x_basic)  # Only use backcast output
             x_basic = x_basic + B_i  # Residual connection for basic chain
@@ -384,8 +399,10 @@ class ParalleOrthoSolverBlock2D(nn.Module):
 
         return forecast, res_out, basic_out
 
+
 class SerialOrthoSolverBlock1D(nn.Module):
     """1D OrthoSolverBlock1D"""
+
     def __init__(
         self,
         modes,
@@ -451,13 +468,25 @@ class SerialOrthoSolverBlock1D(nn.Module):
         # Coefficient Operators: X_i -> C_i
         self.coefficient_operators = nn.ModuleList([])
         for _ in range(n_layers):
+            # self.coefficient_operators.append(
+            #     MLP(
+            #         n_input=width,
+            #         n_hidden=width * factor,
+            #         n_layers=n_ff_layers,
+            #         n_output=self.coefficient_dim,
+            #         act='relu'
+            #     )
+            # )
             self.coefficient_operators.append(
-                MLP(
-                    n_input=width,
-                    n_hidden=width * factor,
-                    n_layers=n_ff_layers,
-                    n_output=self.coefficient_dim,
-                    act='relu'
+                PreNorm(
+                    dim=width,
+                    fn=MLP(
+                        n_input=width,
+                        n_hidden=width * factor,
+                        n_layers=n_ff_layers,
+                        n_output=self.coefficient_dim,
+                        act="relu",
+                    ),
                 )
             )
 
@@ -479,6 +508,7 @@ class SerialOrthoSolverBlock1D(nn.Module):
             nn.ReLU(),
             WNLinear(self.width * factor, self.output_dim, wnorm=ff_weight_norm),
         )
+        self.out = PreNorm(dim=width, fn=self.out)
 
     def forward(self, x, grid=None, **kwargs):
         if grid is not None:
@@ -546,6 +576,7 @@ class SerialOrthoSolverBlock1D(nn.Module):
 
 class SerialOrthoSolverBlock3D(nn.Module):
     """3D OrthoSolverBlock3D"""
+
     def __init__(
         self,
         modes,
@@ -613,13 +644,25 @@ class SerialOrthoSolverBlock3D(nn.Module):
         # Coefficient Operators: X_i -> C_i
         self.coefficient_operators = nn.ModuleList([])
         for _ in range(n_layers):
+            # self.coefficient_operators.append(
+            #     MLP(
+            #         n_input=width,
+            #         n_hidden=width * factor,
+            #         n_layers=n_ff_layers,
+            #         n_output=self.coefficient_dim,
+            #         act='relu'
+            #     )
+            # )
             self.coefficient_operators.append(
-                MLP(
-                    n_input=width,
-                    n_hidden=width * factor,
-                    n_layers=n_ff_layers,
-                    n_output=self.coefficient_dim,
-                    act='relu'
+                PreNorm(
+                    dim=width,
+                    fn=MLP(
+                        n_input=width,
+                        n_hidden=width * factor,
+                        n_layers=n_ff_layers,
+                        n_output=self.coefficient_dim,
+                        act="relu",
+                    ),
                 )
             )
 
@@ -643,6 +686,7 @@ class SerialOrthoSolverBlock3D(nn.Module):
             nn.ReLU(),
             WNLinear(self.width * factor, self.output_dim, wnorm=ff_weight_norm),
         )
+        self.out = PreNorm(dim=width, fn=self.out)
 
     def forward(self, x, grid=None, **kwargs):
         if grid is not None:
@@ -710,4 +754,3 @@ class SerialOrthoSolverBlock3D(nn.Module):
 
 # OrthoSolver Block list for different dimensions
 OrthoSolverBlockList = [None, SerialOrthoSolverBlock1D, SerialOrthoSolverBlock2D, SerialOrthoSolverBlock3D]
-
